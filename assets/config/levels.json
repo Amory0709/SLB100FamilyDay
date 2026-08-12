@@ -11,12 +11,12 @@
           "id": 1,
           "title": "Lv1 — 你好 (Hello Friend)",
           "intro": "在 SLB 100 Family Day,我们用手语开启对话。第一步:学会用「你好」向对方打招呼。",
-          "task": "请在镜头前依次做出以下手语,然后点击「我完成了」。",
+          "task": "请依次做出以下手语,然后点击「我完成了」。",
           "taskIcon": "👋",
           "completionType": "manual",
           "gestures": [
-            { "word": "你 (You)",     "hint": "指向对方 / Point at the other person" },
-            { "word": "好 (Good)",    "hint": "竖起拇指 👍 / Thumb up" }
+            { "word": "你 (You)",  "gestureKey": "point_to_other", "hint": "指向对方 / Point at the other person" },
+            { "word": "好 (Good)", "gestureKey": "thumb_up",       "hint": "竖起拇指 👍 / Thumb up" }
           ],
           "reward": "「你好」手势解锁!",
           "color": "#7eedd0"
@@ -25,14 +25,14 @@
           "id": 2,
           "title": "Lv2 — 谢谢 (Thank You)",
           "intro": "得到帮助时,记得说「谢谢」。SLB 的员工们每天都在用双手创造价值,向他们表达感激吧。",
-          "task": "请连续做出以下 4 个手语动作,然后点击「我完成了」。",
+          "task": "请连续做出以下 4 个手势,然后点击「我完成了」。",
           "taskIcon": "🙏",
           "completionType": "manual",
           "gestures": [
-            { "word": "谢 (Thank) - Part 1", "hint": "竖起拇指 / Thumb up" },
-            { "word": "谢 (Thank) - Part 2", "hint": "半握拳,拇指半伸 / Half thumb" },
-            { "word": "谢 (Thank) - Part 1", "hint": "竖起拇指 / Thumb up" },
-            { "word": "谢 (Thank) - Part 2", "hint": "半握拳,拇指半伸 / Half thumb" }
+            { "word": "谢 (Thank) - Part 1", "gestureKey": "thumb_up",       "hint": "竖起拇指 / Thumb up" },
+            { "word": "谢 (Thank) - Part 2", "gestureKey": "half_thumb_up",   "hint": "半握拳,拇指半伸 / Half thumb" },
+            { "word": "谢 (Thank) - Part 1", "gestureKey": "thumb_up",       "hint": "竖起拇指 / Thumb up" },
+            { "word": "谢 (Thank) - Part 2", "gestureKey": "half_thumb_up",   "hint": "半握拳,拇指半伸 / Half thumb" }
           ],
           "reward": "「谢谢」手势解锁!",
           "color": "#ffe66d"
@@ -41,15 +41,15 @@
           "id": 3,
           "title": "Lv3 — 吃了吗 (Did You Eat?)",
           "intro": "在中文里「吃了吗」是一句很亲切的问候,用来关心对方的日常。Family Day 一起吃饭前,试试这句吧!",
-          "task": "请按顺序做出以下 5 个手语动作,然后点击「我完成了」。",
+          "task": "请按顺序做出以下 5 个手势,然后点击「我完成了」。",
           "taskIcon": "🍱",
           "completionType": "manual",
           "gestures": [
-            { "word": "你 (You)",          "hint": "指向对方 / Point at the other person" },
-            { "word": "吃 (Eat) - I",      "hint": "伸出食指 + 中指 / Index + middle fingers" },
-            { "word": "吃 (Eat) - II",     "hint": "伸出食指 + 中指 / Index + middle fingers" },
-            { "word": "了吗 (Did?) - I",   "hint": "斜下方指点 / Point diagonally down" },
-            { "word": "了吗 (Did?) - II",  "hint": "斜下方指点 / Point diagonally down" }
+            { "word": "你 (You)",         "gestureKey": "point_to_other",       "hint": "指向对方 / Point at the other person" },
+            { "word": "吃 (Eat) - I",     "gestureKey": "two_fingers",          "hint": "食指 + 中指 / Index + middle fingers" },
+            { "word": "吃 (Eat) - II",    "gestureKey": "two_fingers",          "hint": "食指 + 中指 / Index + middle fingers" },
+            { "word": "了吗 (Did?) - I",  "gestureKey": "point_diagonal_down",  "hint": "斜下方指点 / Point diagonally down" },
+            { "word": "了吗 (Did?) - II", "gestureKey": "point_diagonal_down",  "hint": "斜下方指点 / Point diagonally down" }
           ],
           "reward": "「吃了吗」手势解锁!",
           "color": "#ff8fab"
@@ -61,9 +61,7 @@
           "task": "占位任务:请在这里填入第 4 关要做的手语或动作。",
           "taskIcon": "🎯",
           "completionType": "manual",
-          "gestures": [
-            { "word": "[占位] 手势 1", "hint": "示例:在镜头前比一个心 / Example: make a heart shape" }
-          ],
+          "gestures": [],
           "reward": "[占位] 奖励",
           "color": "#e0b4ff"
         }
@@ -81,10 +79,7 @@
           "task": "占位任务:和你的伙伴一起做出 [这里填入] 手势。",
           "taskIcon": "👫",
           "completionType": "manual",
-          "gestures": [
-            { "word": "[占位] 玩家 A 手势", "hint": "示例" },
-            { "word": "[占位] 玩家 B 手势", "hint": "示例" }
-          ],
+          "gestures": [],
           "reward": "[占位] 奖励",
           "color": "#ff8fab"
         },
@@ -95,12 +90,7 @@
           "task": "占位任务:两人轮流做出 [这里填入]。",
           "taskIcon": "🤝",
           "completionType": "manual",
-          "gestures": [
-            { "word": "[占位] 玩家 A 第 1 步", "hint": "示例" },
-            { "word": "[占位] 玩家 B 第 1 步", "hint": "示例" },
-            { "word": "[占位] 玩家 A 第 2 步", "hint": "示例" },
-            { "word": "[占位] 玩家 B 第 2 步", "hint": "示例" }
-          ],
+          "gestures": [],
           "reward": "[占位] 奖励",
           "color": "#7eedd0"
         },
@@ -111,10 +101,7 @@
           "task": "占位任务:玩家 A 描述,玩家 B 猜出 [这里填入]。",
           "taskIcon": "💬",
           "completionType": "manual",
-          "gestures": [
-            { "word": "[占位] 描述动作 A", "hint": "示例" },
-            { "word": "[占位] 回答手势 B", "hint": "示例" }
-          ],
+          "gestures": [],
           "reward": "[占位] 奖励",
           "color": "#ffe66d"
         },
@@ -125,10 +112,7 @@
           "task": "占位任务:两人一起做 [这里填入] 庆祝。",
           "taskIcon": "🎉",
           "completionType": "manual",
-          "gestures": [
-            { "word": "[占位] 庆祝手势 1", "hint": "示例" },
-            { "word": "[占位] 庆祝手势 2", "hint": "示例" }
-          ],
+          "gestures": [],
           "reward": "[占位] 奖励",
           "color": "#e0b4ff"
         }

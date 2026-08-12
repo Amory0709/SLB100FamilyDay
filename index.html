@@ -506,18 +506,95 @@
   }
   .task-gestures {
     display: flex;
-    flex-wrap: wrap;
-    gap: 6px;
-    margin-top: 8px;
+    flex-wrap: nowrap;
+    gap: 10px;
+    margin-top: 10px;
+    overflow-x: auto;
+    padding: 2px 0 4px;
+    scrollbar-width: thin;
+    scrollbar-color: #c0c4d6 transparent;
   }
-  .task-gesture {
-    background: rgba(0, 20, 200, 0.08);
+  .task-gestures::-webkit-scrollbar { height: 6px; }
+  .task-gestures::-webkit-scrollbar-thumb { background: #c0c4d6; border-radius: 3px; }
+  .task-gestures::-webkit-scrollbar-track { background: transparent; }
+
+  .task-gestures-empty {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 18px 14px;
+    border: 1.5px dashed #d8dceb;
+    border-radius: 12px;
+    color: #8a90a8;
+    font-size: 12.5px;
+    margin-top: 10px;
+  }
+
+  .task-gesture-card {
+    position: relative;
+    flex: 0 0 132px;
+    background: #fafbff;
+    border: 1.5px solid #e0e5f5;
+    border-radius: 14px;
+    padding: 8px 8px 10px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    gap: 3px;
+    transition: transform 0.15s ease, border-color 0.15s ease;
+  }
+  .task-gesture-card:hover {
+    transform: translateY(-2px);
+    border-color: var(--level-color, #0014c8);
+  }
+  .task-card-glyph {
+    width: 84px;
+    height: 84px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+  }
+  .task-card-glyph svg {
+    width: 100%;
+    height: 100%;
+    display: block;
+  }
+  .task-card-glyph-fallback {
+    font-size: 48px;
+    opacity: 0.5;
+  }
+  .task-card-num {
+    position: absolute;
+    top: 6px;
+    right: 6px;
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    background: var(--level-color, #0014c8);
+    color: #fff;
+    font-family: 'SLBSans', system-ui, sans-serif;
+    font-size: 11px;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    line-height: 1;
+  }
+  .task-card-word {
+    font-family: 'SLBSans', system-ui, sans-serif;
+    font-weight: 700;
+    font-size: 13px;
     color: #0014c8;
-    padding: 4px 10px;
-    border-radius: 999px;
-    font-size: 12px;
-    font-weight: 500;
-    line-height: 1.4;
+    line-height: 1.2;
+    margin-top: 2px;
+  }
+  .task-card-hint {
+    font-size: 11px;
+    color: #6b7290;
+    line-height: 1.35;
+    min-height: 28px;
   }
   .level-taskbar .level-btn { padding: 9px 18px; font-size: 14px; }
 
@@ -2259,16 +2336,35 @@ function showTask(id) {
   $taskTitle.textContent = cfg.title;
   $taskHint.textContent  = cfg.task;
   $taskGestures.innerHTML = '';
-  for (const g of (cfg.gestures || [])) {
-    const chip = document.createElement('span');
-    chip.className = 'task-gesture';
-    chip.textContent = g.word;
-    if (g.hint) chip.title = g.hint;
-    $taskGestures.appendChild(chip);
+  const gestures = cfg.gestures || [];
+  if (!gestures.length) {
+    $taskGestures.innerHTML = '<div class="task-gestures-empty">本关没有配置手势 — 直接点击「我完成了」即可</div>';
+  } else {
+    gestures.forEach((g, idx) => {
+      const card = document.createElement('div');
+      card.className = 'task-gesture-card';
+      const glyph = g.gestureKey && GESTURE_GLYPHS[g.gestureKey];
+      const glyphHtml = glyph
+        ? `<div class="task-card-glyph">${glyph}</div>`
+        : `<div class="task-card-glyph"><div class="task-card-glyph-fallback">✋</div></div>`;
+      card.innerHTML =
+        glyphHtml +
+        `<div class="task-card-num">${idx + 1}</div>` +
+        `<div class="task-card-word">${escapeHtml(g.word || '')}</div>` +
+        `<div class="task-card-hint">${escapeHtml(g.hint || '')}</div>`;
+      $taskGestures.appendChild(card);
+    });
   }
   hideAllPopups();
   $task.hidden = false;
   levelState = 'task';
+}
+
+// Tiny HTML escaper for any user-supplied text we inject via innerHTML.
+function escapeHtml(s) {
+  return String(s)
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
 }
 
 function showWon(id) {
@@ -2356,6 +2452,63 @@ $lobbyHome.addEventListener('click', returnToLobby);
 
 // Pre-load config so the first mode click is instant.
 loadLevelsConfig();
+
+// ============================================================
+// Gesture SVG glyphs — simple hand illustrations used in the
+// task popup.  Keyed by `gestureKey` in levels.json.  Add a new
+// key here when you add a new gesture to the JSON.
+// ============================================================
+const GESTURE_GLYPHS = {
+  point_to_other: `<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+    <circle cx="48" cy="58" r="22" fill="#eef2ff" stroke="#0014c8" stroke-width="3"/>
+    <rect x="32" y="78" width="32" height="14" rx="3" fill="#0014c8"/>
+    <g transform="translate(70 55) rotate(90)"><rect x="0" y="-6" width="30" height="12" rx="6" fill="#0014c8"/></g>
+    <circle cx="26" cy="56" r="7" fill="#eef2ff" stroke="#0014c8" stroke-width="3"/>
+    <circle cx="38" cy="36" r="5" fill="#0014c8"/>
+    <circle cx="50" cy="34" r="5" fill="#0014c8"/>
+    <circle cx="60" cy="36" r="5" fill="#0014c8"/>
+  </svg>`,
+
+  thumb_up: `<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+    <circle cx="50" cy="62" r="22" fill="#eef2ff" stroke="#0014c8" stroke-width="3"/>
+    <rect x="32" y="78" width="32" height="14" rx="3" fill="#0014c8"/>
+    <rect x="42" y="6" width="14" height="42" rx="7" fill="#0014c8"/>
+    <circle cx="36" cy="42" r="5" fill="#0014c8"/>
+    <circle cx="48" cy="40" r="5" fill="#0014c8"/>
+    <circle cx="60" cy="42" r="5" fill="#0014c8"/>
+    <circle cx="68" cy="50" r="5" fill="#0014c8"/>
+  </svg>`,
+
+  half_thumb_up: `<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+    <circle cx="50" cy="62" r="22" fill="#eef2ff" stroke="#0014c8" stroke-width="3"/>
+    <rect x="32" y="78" width="32" height="14" rx="3" fill="#0014c8"/>
+    <path d="M 44 52 Q 32 30 44 14" stroke="#0014c8" stroke-width="13" fill="none" stroke-linecap="round"/>
+    <circle cx="36" cy="44" r="6" fill="#eef2ff" stroke="#0014c8" stroke-width="3"/>
+    <circle cx="48" cy="42" r="6" fill="#eef2ff" stroke="#0014c8" stroke-width="3"/>
+    <circle cx="60" cy="44" r="6" fill="#eef2ff" stroke="#0014c8" stroke-width="3"/>
+    <circle cx="68" cy="52" r="6" fill="#eef2ff" stroke="#0014c8" stroke-width="3"/>
+  </svg>`,
+
+  two_fingers: `<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+    <circle cx="50" cy="62" r="22" fill="#eef2ff" stroke="#0014c8" stroke-width="3"/>
+    <rect x="32" y="78" width="32" height="14" rx="3" fill="#0014c8"/>
+    <rect x="42" y="6" width="13" height="42" rx="6.5" fill="#0014c8"/>
+    <rect x="58" y="6" width="13" height="42" rx="6.5" fill="#0014c8"/>
+    <circle cx="26" cy="58" r="7" fill="#eef2ff" stroke="#0014c8" stroke-width="3"/>
+    <circle cx="72" cy="48" r="5" fill="#0014c8"/>
+  </svg>`,
+
+  point_diagonal_down: `<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+    <circle cx="46" cy="52" r="22" fill="#eef2ff" stroke="#0014c8" stroke-width="3"/>
+    <rect x="32" y="78" width="32" height="14" rx="3" fill="#0014c8"/>
+    <g transform="translate(60 58) rotate(45)"><rect x="0" y="-6" width="34" height="12" rx="6" fill="#0014c8"/></g>
+    <circle cx="22" cy="50" r="7" fill="#eef2ff" stroke="#0014c8" stroke-width="3"/>
+    <circle cx="36" cy="30" r="5" fill="#0014c8"/>
+    <circle cx="48" cy="28" r="5" fill="#0014c8"/>
+    <circle cx="58" cy="30" r="5" fill="#0014c8"/>
+  </svg>`,
+};
 </script>
+
 </body>
 </html>
