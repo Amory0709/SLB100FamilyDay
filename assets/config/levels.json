@@ -1,0 +1,138 @@
+{
+  "version": 1,
+  "comment": "SLB 100 Family Day 关卡内容配置。改这个文件就能改关卡文案,不需要碰 game.html。3D 位置在 game.html 的 LEVEL_ROUTE 里,这里只管内容(title/intro/task/gestures/reward)。",
+  "modes": {
+    "single": {
+      "name": "单人模式 (Single Mode)",
+      "intro": "欢迎来到 SLB 100 Family Day!\n我们将通过 4 个关卡,学习 3 句常用的手语问候。\n\n完成全部关卡即可解锁整个油井平台。",
+      "outro": "恭喜! 你已经完成全部 4 个关卡\n谢谢你的参与 — Family Day 快乐!",
+      "levels": [
+        {
+          "id": 1,
+          "title": "Lv1 — 你好 (Hello Friend)",
+          "intro": "在 SLB 100 Family Day,我们用手语开启对话。第一步:学会用「你好」向对方打招呼。",
+          "task": "请在镜头前依次做出以下手语,然后点击「我完成了」。",
+          "taskIcon": "👋",
+          "completionType": "manual",
+          "gestures": [
+            { "word": "你 (You)",     "hint": "指向对方 / Point at the other person" },
+            { "word": "好 (Good)",    "hint": "竖起拇指 👍 / Thumb up" }
+          ],
+          "reward": "「你好」手势解锁!",
+          "color": "#7eedd0"
+        },
+        {
+          "id": 2,
+          "title": "Lv2 — 谢谢 (Thank You)",
+          "intro": "得到帮助时,记得说「谢谢」。SLB 的员工们每天都在用双手创造价值,向他们表达感激吧。",
+          "task": "请连续做出以下 4 个手语动作,然后点击「我完成了」。",
+          "taskIcon": "🙏",
+          "completionType": "manual",
+          "gestures": [
+            { "word": "谢 (Thank) - Part 1", "hint": "竖起拇指 / Thumb up" },
+            { "word": "谢 (Thank) - Part 2", "hint": "半握拳,拇指半伸 / Half thumb" },
+            { "word": "谢 (Thank) - Part 1", "hint": "竖起拇指 / Thumb up" },
+            { "word": "谢 (Thank) - Part 2", "hint": "半握拳,拇指半伸 / Half thumb" }
+          ],
+          "reward": "「谢谢」手势解锁!",
+          "color": "#ffe66d"
+        },
+        {
+          "id": 3,
+          "title": "Lv3 — 吃了吗 (Did You Eat?)",
+          "intro": "在中文里「吃了吗」是一句很亲切的问候,用来关心对方的日常。Family Day 一起吃饭前,试试这句吧!",
+          "task": "请按顺序做出以下 5 个手语动作,然后点击「我完成了」。",
+          "taskIcon": "🍱",
+          "completionType": "manual",
+          "gestures": [
+            { "word": "你 (You)",          "hint": "指向对方 / Point at the other person" },
+            { "word": "吃 (Eat) - I",      "hint": "伸出食指 + 中指 / Index + middle fingers" },
+            { "word": "吃 (Eat) - II",     "hint": "伸出食指 + 中指 / Index + middle fingers" },
+            { "word": "了吗 (Did?) - I",   "hint": "斜下方指点 / Point diagonally down" },
+            { "word": "了吗 (Did?) - II",  "hint": "斜下方指点 / Point diagonally down" }
+          ],
+          "reward": "「吃了吗」手势解锁!",
+          "color": "#ff8fab"
+        },
+        {
+          "id": 4,
+          "title": "Lv4 — [占位 待替换] (Placeholder)",
+          "intro": "这是单人模式的第 4 关 — 占位文案。\n\n请在 assets/config/levels.json 的 single.levels[3] 里替换为真实内容。",
+          "task": "占位任务:请在这里填入第 4 关要做的手语或动作。",
+          "taskIcon": "🎯",
+          "completionType": "manual",
+          "gestures": [
+            { "word": "[占位] 手势 1", "hint": "示例:在镜头前比一个心 / Example: make a heart shape" }
+          ],
+          "reward": "[占位] 奖励",
+          "color": "#e0b4ff"
+        }
+      ]
+    },
+    "couple": {
+      "name": "双人模式 (Couple Mode)",
+      "intro": "欢迎来到 SLB 100 Family Day 双人模式!\n和你的伙伴一起,合作完成 4 个任务。\n\n提示:每关的 2 位玩家需要互相配合。",
+      "outro": "太棒了! 你们一起完成了全部 4 个关卡\nFamily Day 快乐!",
+      "levels": [
+        {
+          "id": 1,
+          "title": "Lv1 — 合作 (Cooperation)",
+          "intro": "双人模式的第 1 关 — 占位文案。\n\n请在 levels.json 的 couple.levels[0] 里替换为真实内容。\n\n建议主题:两个玩家一起做的手势 (例如同时指向对方、同时竖拇指)",
+          "task": "占位任务:和你的伙伴一起做出 [这里填入] 手势。",
+          "taskIcon": "👫",
+          "completionType": "manual",
+          "gestures": [
+            { "word": "[占位] 玩家 A 手势", "hint": "示例" },
+            { "word": "[占位] 玩家 B 手势", "hint": "示例" }
+          ],
+          "reward": "[占位] 奖励",
+          "color": "#ff8fab"
+        },
+        {
+          "id": 2,
+          "title": "Lv2 — 协作 (Collaboration)",
+          "intro": "双人模式的第 2 关 — 占位文案。\n\n请在 levels.json 的 couple.levels[1] 里替换为真实内容。\n\n建议主题:两人交替做手势的节奏游戏",
+          "task": "占位任务:两人轮流做出 [这里填入]。",
+          "taskIcon": "🤝",
+          "completionType": "manual",
+          "gestures": [
+            { "word": "[占位] 玩家 A 第 1 步", "hint": "示例" },
+            { "word": "[占位] 玩家 B 第 1 步", "hint": "示例" },
+            { "word": "[占位] 玩家 A 第 2 步", "hint": "示例" },
+            { "word": "[占位] 玩家 B 第 2 步", "hint": "示例" }
+          ],
+          "reward": "[占位] 奖励",
+          "color": "#7eedd0"
+        },
+        {
+          "id": 3,
+          "title": "Lv3 — 交流 (Communication)",
+          "intro": "双人模式的第 3 关 — 占位文案。\n\n请在 levels.json 的 couple.levels[2] 里替换为真实内容。\n\n建议主题:一个人用动作描述,另一个人猜词语",
+          "task": "占位任务:玩家 A 描述,玩家 B 猜出 [这里填入]。",
+          "taskIcon": "💬",
+          "completionType": "manual",
+          "gestures": [
+            { "word": "[占位] 描述动作 A", "hint": "示例" },
+            { "word": "[占位] 回答手势 B", "hint": "示例" }
+          ],
+          "reward": "[占位] 奖励",
+          "color": "#ffe66d"
+        },
+        {
+          "id": 4,
+          "title": "Lv4 — 庆祝 (Celebration)",
+          "intro": "双人模式的第 4 关 — 占位文案。\n\n请在 levels.json 的 couple.levels[3] 里替换为真实内容。\n\n建议主题:最后一起做庆祝动作(挥手/击掌)",
+          "task": "占位任务:两人一起做 [这里填入] 庆祝。",
+          "taskIcon": "🎉",
+          "completionType": "manual",
+          "gestures": [
+            { "word": "[占位] 庆祝手势 1", "hint": "示例" },
+            { "word": "[占位] 庆祝手势 2", "hint": "示例" }
+          ],
+          "reward": "[占位] 奖励",
+          "color": "#e0b4ff"
+        }
+      ]
+    }
+  }
+}

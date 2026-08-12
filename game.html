@@ -341,6 +341,223 @@
   }
   body.dev-mode #slb-panel { display: none; }
   body.dev-mode #hint { bottom: 14px; left: auto; right: 14px; }
+
+  /* ---------- Level popups (intro / task / won / outro) ----------
+     Hidden in dev mode — dev mode is for 3D placement, not gameplay. */
+  body.dev-mode .level-popup,
+  body.dev-mode .level-taskbar { display: none !important; }
+
+  .level-popup {
+    position: fixed;
+    inset: 0;
+    z-index: 9000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(0, 20, 200, 0.32);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    animation: level-fade 0.3s ease;
+    padding: 20px;
+  }
+  .level-popup[hidden] { display: none; }
+
+  .level-card {
+    background: #fff;
+    border-radius: 20px;
+    padding: 28px 32px 26px;
+    max-width: 480px;
+    width: 100%;
+    box-shadow: 0 24px 60px rgba(0, 20, 200, 0.28),
+                0 2px 6px rgba(0, 20, 200, 0.12);
+    text-align: center;
+    position: relative;
+    border-top: 6px solid var(--level-color, #0014c8);
+    animation: level-pop 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+  }
+  .level-card h2 {
+    font-family: 'SLBSans', system-ui, sans-serif;
+    font-weight: 700;
+    font-size: 22px;
+    margin: 12px 0 10px;
+    color: #0014c8;
+    line-height: 1.3;
+  }
+  .level-card p {
+    color: #2d3448;
+    line-height: 1.65;
+    margin: 0 0 18px;
+    font-size: 15px;
+    white-space: pre-line;
+  }
+  .level-card .small-note {
+    font-size: 12px;
+    color: #8a90a8;
+    margin-top: 12px;
+  }
+
+  .level-badge {
+    display: inline-block;
+    width: 54px;
+    height: 54px;
+    border-radius: 50%;
+    background: var(--level-color, #0014c8);
+    color: #fff;
+    font-family: 'SLBSans', system-ui, sans-serif;
+    font-size: 22px;
+    font-weight: 700;
+    line-height: 54px;
+    text-align: center;
+    box-shadow: 0 4px 0 rgba(0, 20, 200, 0.35);
+  }
+
+  .level-card-actions {
+    display: flex;
+    gap: 10px;
+    justify-content: center;
+    flex-wrap: wrap;
+  }
+
+  .level-btn {
+    border: none;
+    border-radius: 999px;
+    padding: 11px 26px;
+    font-size: 15px;
+    font-weight: 600;
+    cursor: pointer;
+    font-family: 'SLBSans', system-ui, sans-serif;
+    transition: transform 0.1s ease, box-shadow 0.1s ease;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .level-btn-primary {
+    background: #0014c8;
+    color: #fff;
+    box-shadow: 0 4px 0 rgba(0, 20, 200, 0.4);
+  }
+  .level-btn-primary:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 5px 0 rgba(0, 20, 200, 0.4);
+  }
+  .level-btn-primary:active {
+    transform: translateY(2px);
+    box-shadow: 0 2px 0 rgba(0, 20, 200, 0.4);
+  }
+  .level-btn-ghost {
+    background: transparent;
+    color: #6b7290;
+    border: 1.5px solid #d8dceb;
+  }
+  .level-btn-ghost:hover { background: rgba(0, 20, 200, 0.05); }
+
+  .level-card-celebrate {
+    background: linear-gradient(135deg, #fff 0%, #f0f4ff 100%);
+  }
+  .won-icon {
+    font-size: 56px;
+    line-height: 1;
+    margin: 4px 0 4px;
+    color: var(--level-color, #0014c8);
+    animation: won-bounce 0.6s cubic-bezier(0.34, 1.56, 0.64, 1);
+  }
+  .won-icon.outro { color: #0014c8; }
+
+  /* Task bar — floats at the bottom, doesn't block the 3D view. */
+  .level-taskbar {
+    position: fixed;
+    bottom: 22px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: #fff;
+    border-radius: 18px;
+    padding: 14px 18px;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    box-shadow: 0 14px 40px rgba(0, 20, 200, 0.22),
+                0 2px 6px rgba(0, 20, 200, 0.1);
+    z-index: 8999;
+    max-width: 760px;
+    width: calc(100% - 40px);
+    border-top: 4px solid var(--level-color, #0014c8);
+    animation: task-slide 0.4s ease;
+  }
+  .level-taskbar[hidden] { display: none; }
+
+  .task-icon {
+    font-size: 34px;
+    line-height: 1;
+    flex-shrink: 0;
+  }
+  .task-body {
+    flex: 1;
+    min-width: 0;
+  }
+  .task-title {
+    font-family: 'SLBSans', system-ui, sans-serif;
+    font-weight: 700;
+    font-size: 15px;
+    color: #0014c8;
+    line-height: 1.25;
+  }
+  .task-hint {
+    font-size: 12.5px;
+    color: #6b7290;
+    margin-top: 2px;
+  }
+  .task-gestures {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-top: 8px;
+  }
+  .task-gesture {
+    background: rgba(0, 20, 200, 0.08);
+    color: #0014c8;
+    padding: 4px 10px;
+    border-radius: 999px;
+    font-size: 12px;
+    font-weight: 500;
+    line-height: 1.4;
+  }
+  .level-taskbar .level-btn { padding: 9px 18px; font-size: 14px; }
+
+  /* Tiny "back to lobby" button — bottom-left when in-game. */
+  .lobby-home {
+    position: fixed;
+    bottom: 18px;
+    left: 18px;
+    z-index: 8998;
+    background: rgba(255, 255, 255, 0.92);
+    border: 1.5px solid #d8dceb;
+    border-radius: 999px;
+    padding: 8px 14px 8px 12px;
+    font-size: 13px;
+    font-weight: 600;
+    color: #0014c8;
+    cursor: pointer;
+    font-family: 'SLBSans', system-ui, sans-serif;
+    box-shadow: 0 4px 16px rgba(0, 20, 200, 0.15);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .lobby-home[hidden] { display: none; }
+  .lobby-home:hover { background: #fff; }
+
+  @keyframes level-fade { from { opacity: 0; } to { opacity: 1; } }
+  @keyframes level-pop {
+    from { transform: scale(0.85); opacity: 0; }
+    to   { transform: scale(1);    opacity: 1; }
+  }
+  @keyframes task-slide {
+    from { transform: translate(-50%, 30px); opacity: 0; }
+    to   { transform: translate(-50%, 0);    opacity: 1; }
+  }
+  @keyframes won-bounce {
+    0%   { transform: scale(0) rotate(-15deg); }
+    60%  { transform: scale(1.18) rotate(8deg); }
+    100% { transform: scale(1) rotate(0); }
+  }
 </style>
 </head>
 <body>
@@ -372,6 +589,59 @@
   </div>
   <div class="dev-toast" id="dev-toast" aria-live="polite"></div>
 </div>
+
+<!-- ---------- Level popups ---------- -->
+<div id="level-intro" class="level-popup" hidden role="dialog" aria-modal="true" aria-labelledby="level-intro-title">
+  <div class="level-card">
+    <div class="level-badge" id="level-intro-badge">1</div>
+    <h2 id="level-intro-title">Lv1</h2>
+    <p id="level-intro-text">…</p>
+    <div class="level-card-actions">
+      <button id="level-intro-start" class="level-btn level-btn-primary" type="button">开始任务 →</button>
+      <button id="level-intro-skip"  class="level-btn level-btn-ghost"  type="button">跳过本关</button>
+    </div>
+    <p class="small-note" id="level-intro-progress">1 / 4</p>
+  </div>
+</div>
+
+<div id="level-task" class="level-taskbar" hidden role="region" aria-label="Current task">
+  <div class="task-icon" id="level-task-icon">🎯</div>
+  <div class="task-body">
+    <div class="task-title" id="level-task-title">Lv1</div>
+    <div class="task-hint"  id="level-task-hint">…</div>
+    <div class="task-gestures" id="level-task-gestures"></div>
+  </div>
+  <button id="level-task-done" class="level-btn level-btn-primary" type="button">我完成了 ✓</button>
+</div>
+
+<div id="level-won" class="level-popup" hidden role="dialog" aria-modal="true" aria-labelledby="level-won-title">
+  <div class="level-card level-card-celebrate">
+    <div class="won-icon">✓</div>
+    <h2 id="level-won-title">关卡完成!</h2>
+    <p id="level-won-reward">…</p>
+    <div class="level-card-actions">
+      <button id="level-won-next"  class="level-btn level-btn-primary" type="button">下一关 →</button>
+      <button id="level-won-replay" class="level-btn level-btn-ghost"  type="button">重玩本关</button>
+    </div>
+    <p class="small-note" id="level-won-progress">1 / 4</p>
+  </div>
+</div>
+
+<div id="level-outro" class="level-popup" hidden role="dialog" aria-modal="true" aria-labelledby="level-outro-title">
+  <div class="level-card level-card-celebrate">
+    <div class="won-icon outro">🎉</div>
+    <h2 id="level-outro-title">完成全部关卡!</h2>
+    <p id="level-outro-text">…</p>
+    <div class="level-card-actions">
+      <button id="level-outro-restart" class="level-btn level-btn-primary" type="button">↻ 重新开始</button>
+      <button id="level-outro-lobby"   class="level-btn level-btn-ghost"  type="button">回到主菜单</button>
+    </div>
+  </div>
+</div>
+
+<button id="lobby-home" class="lobby-home" type="button" hidden aria-label="Back to lobby">
+  <span aria-hidden="true">🏠</span> 主菜单
+</button>
 
 <div id="slb-panel">
   <button id="gui-toggle" title="toggle GUI">⚙</button>
@@ -708,21 +978,48 @@ fPin.add({
 applyVideoBg();
 
 // ---------- Controls ----------
-// Close button for the right-side panel (hides video + welcome + modes together)
+// Close button for the right-side panel (hides video + welcome + modes together).
+// Also reveals the 🏠 "main menu" button so the user can return later without
+// refreshing the page.
 document.getElementById('slb-video-close').addEventListener('click', () => {
   const panel = document.getElementById('slb-panel');
   const video = document.getElementById('slb-video');
   if (video) video.pause();
   if (panel) panel.style.display = 'none';
+  const home = document.getElementById('lobby-home');
+  if (home) home.hidden = false;
 });
 
-// Mode card toggle (Single Mode / Couple Mode) — single-select; placeholder behavior.
+// Mode card click — pick a mode, hide the lobby, start Lv1.
+async function onModeCardClick(btn) {
+  const mode = btn.dataset.mode;
+  if (!mode) return;
+  document.querySelectorAll('.mode-card').forEach((b) => b.classList.remove('selected'));
+  btn.classList.add('selected');
+  currentMode = mode;
+
+  if (!LEVELS_CONFIG) await loadLevelsConfig();
+  if (!LEVELS_CONFIG) {
+    alert(
+      'Failed to load levels config.\n\n' +
+      '请通过 web server 打开此页面 (不能直接双击 HTML)。\n' +
+      '例如: cd 项目目录 && python3 -m http.server 8000\n' +
+      '然后浏览器打开 http://localhost:8000/'
+    );
+    return;
+  }
+
+  // Dismiss the lobby, kick off the level flow.
+  const panel = document.getElementById('slb-panel');
+  const video = document.getElementById('slb-video');
+  if (video) video.pause();
+  if (panel) panel.style.display = 'none';
+  $lobbyHome.hidden = false;
+
+  showIntro(1);
+}
 document.querySelectorAll('.mode-card').forEach((btn) => {
-  btn.addEventListener('click', () => {
-    document.querySelectorAll('.mode-card').forEach((b) => b.classList.remove('selected'));
-    btn.classList.add('selected');
-    console.log(`mode selected: ${btn.dataset.mode}`);
-  });
+  btn.addEventListener('click', () => onModeCardClick(btn));
 });
 
 const controls = new OrbitControls(camera, renderer.domElement);
@@ -1087,7 +1384,7 @@ let cameraFlyAnim = null;
 function updateCameraFly(now) {
   if (!cameraFlyAnim) return false;
 
-  const { fromCam, toCam, fromTgt, toTgt, start, duration, levelIdx } = cameraFlyAnim;
+  const { fromCam, toCam, fromTgt, toTgt, start, duration, levelIdx, onComplete } = cameraFlyAnim;
   const t = Math.min(1, (now - start) / duration);
   const e = easeInOutCubic(t);
   const arc = Math.sin(t * Math.PI);
@@ -1098,6 +1395,9 @@ function updateCameraFly(now) {
   camera.updateProjectionMatrix();
 
   if (t >= 1) {
+    // Capture callback BEFORE nulling so dev-mode callers (which pass nothing)
+    // and the level-popup flow (which passes a fn) both behave correctly.
+    const cb = onComplete;
     cameraFlyAnim = null;
     controls.enabled = true;
     controls.update();
@@ -1107,6 +1407,7 @@ function updateCameraFly(now) {
     if (gem?.material) {
       gem.material.emissiveIntensity = completedLevels.has(levelIdx + 1) ? 1.1 : 0.85;
     }
+    if (cb) cb();
   }
 
   return t < 1;
@@ -1199,6 +1500,7 @@ function flyToLevel(levelId) {
     start: performance.now(),
     duration: 1400,
     levelIdx: levelId - 1,
+    onComplete: typeof onComplete === 'function' ? onComplete : null,
   };
   controls.enabled = false;
 }
@@ -1862,6 +2164,198 @@ function tick() {
   requestAnimationFrame(tick);
 }
 tick();
+
+// ============================================================
+// Level popup system — 4 levels per mode, configurable via
+// assets/config/levels.json.  Single and Couple modes each have
+// their own 4-level set.  See assets/config/levels.README.md.
+// ============================================================
+const LEVELS_CONFIG_URL = './assets/config/levels.json';
+let LEVELS_CONFIG = null;
+let currentMode  = null;     // 'single' | 'couple'
+let currentLevel = 0;        // 1-based id matching levels[].id
+let levelState   = 'idle';   // 'idle' | 'intro' | 'task' | 'won' | 'outro'
+
+// --- DOM refs (popups + the small "back to lobby" button) ---
+const $intro         = document.getElementById('level-intro');
+const $introBadge    = document.getElementById('level-intro-badge');
+const $introTitle    = document.getElementById('level-intro-title');
+const $introText     = document.getElementById('level-intro-text');
+const $introProgress = document.getElementById('level-intro-progress');
+const $introStart    = document.getElementById('level-intro-start');
+const $introSkip     = document.getElementById('level-intro-skip');
+
+const $task         = document.getElementById('level-task');
+const $taskIcon     = document.getElementById('level-task-icon');
+const $taskTitle    = document.getElementById('level-task-title');
+const $taskHint     = document.getElementById('level-task-hint');
+const $taskGestures = document.getElementById('level-task-gestures');
+const $taskDone     = document.getElementById('level-task-done');
+
+const $won         = document.getElementById('level-won');
+const $wonTitle    = document.getElementById('level-won-title');
+const $wonReward   = document.getElementById('level-won-reward');
+const $wonProgress = document.getElementById('level-won-progress');
+const $wonNext     = document.getElementById('level-won-next');
+const $wonReplay   = document.getElementById('level-won-replay');
+
+const $outro        = document.getElementById('level-outro');
+const $outroText    = document.getElementById('level-outro-text');
+const $outroRestart = document.getElementById('level-outro-restart');
+const $outroLobby   = document.getElementById('level-outro-lobby');
+
+const $lobbyHome = document.getElementById('lobby-home');
+
+// --- Config loader ---
+async function loadLevelsConfig() {
+  if (LEVELS_CONFIG) return LEVELS_CONFIG;
+  try {
+    const r = await fetch(LEVELS_CONFIG_URL);
+    if (!r.ok) throw new Error(`HTTP ${r.status}`);
+    LEVELS_CONFIG = await r.json();
+    console.log(`✅ Loaded levels.json (v${LEVELS_CONFIG.version})`);
+  } catch (e) {
+    console.warn('⚠ Failed to load levels.json:', e.message);
+    LEVELS_CONFIG = null;
+  }
+  return LEVELS_CONFIG;
+}
+
+function getModeConfig()    { return LEVELS_CONFIG?.modes?.[currentMode] ?? null; }
+function getLevelConfig(id) { const m = getModeConfig(); return m ? (m.levels.find((l) => l.id === id) ?? null) : null; }
+function getTotalLevels()   { return getModeConfig()?.levels.length ?? 0; }
+
+function applyLevelColor(cfg) {
+  const c = cfg?.color || '#0014c8';
+  for (const el of [$intro, $task, $won, $outro]) {
+    if (el) el.style.setProperty('--level-color', c);
+  }
+}
+function hideAllPopups() {
+  for (const el of [$intro, $task, $won, $outro]) el.hidden = true;
+}
+
+// --- Popup renderers ---
+function showIntro(id) {
+  currentLevel = id;
+  const cfg = getLevelConfig(id);
+  if (!cfg) { console.warn(`No config for level ${id} in mode ${currentMode}`); return; }
+  applyLevelColor(cfg);
+  $introBadge.textContent = String(cfg.id);
+  $introTitle.textContent = cfg.title;
+  $introText.textContent  = cfg.intro;
+  $introProgress.textContent = `${cfg.id} / ${getTotalLevels()}`;
+  hideAllPopups();
+  $intro.hidden = false;
+  $lobbyHome.hidden = false;  // keep the 🏠 visible whenever a level is up
+  levelState = 'intro';
+}
+
+function showTask(id) {
+  const cfg = getLevelConfig(id);
+  if (!cfg) return;
+  applyLevelColor(cfg);
+  $taskIcon.textContent  = cfg.taskIcon || '🎯';
+  $taskTitle.textContent = cfg.title;
+  $taskHint.textContent  = cfg.task;
+  $taskGestures.innerHTML = '';
+  for (const g of (cfg.gestures || [])) {
+    const chip = document.createElement('span');
+    chip.className = 'task-gesture';
+    chip.textContent = g.word;
+    if (g.hint) chip.title = g.hint;
+    $taskGestures.appendChild(chip);
+  }
+  hideAllPopups();
+  $task.hidden = false;
+  levelState = 'task';
+}
+
+function showWon(id) {
+  const cfg = getLevelConfig(id);
+  if (!cfg) return;
+  applyLevelColor(cfg);
+  $wonTitle.textContent  = `${cfg.title} — 完成!`;
+  $wonReward.textContent = cfg.reward || '恭喜解锁本关!';
+  const isLast = id >= getTotalLevels();
+  $wonNext.textContent   = isLast ? '完成全部 ✓' : '下一关 →';
+  $wonProgress.textContent = `${cfg.id} / ${getTotalLevels()}`;
+  hideAllPopups();
+  $won.hidden = false;
+  levelState = 'won';
+}
+
+function showOutro() {
+  const mode = getModeConfig();
+  $outroText.textContent = mode?.outro || '恭喜完成!';
+  hideAllPopups();
+  $outro.hidden = false;
+  $lobbyHome.hidden = true;
+  levelState = 'outro';
+}
+
+// --- Flow handlers ---
+function onIntroStart() {
+  // Fly to the level; show the task card when the camera arrives.
+  const id = currentLevel;
+  $intro.hidden = true;
+  flyToLevel(id, () => showTask(id));
+}
+
+function onIntroSkip() {
+  // Skip without completing — jump to next intro, or outro on last.
+  const next = currentLevel + 1;
+  if (next > getTotalLevels()) showOutro();
+  else showIntro(next);
+}
+
+function onTaskDone() {
+  const id = currentLevel;
+  if (!completedLevels.has(id)) completeLevel(id);
+  showWon(id);
+}
+
+function onWonNext() {
+  const next = currentLevel + 1;
+  if (next > getTotalLevels()) showOutro();
+  else showIntro(next);
+}
+
+function onWonReplay() {
+  // Replay the same level (level still counts as completed).
+  showTask(currentLevel);
+}
+
+function onOutroRestart() {
+  resetLevelProgress();
+  showIntro(1);
+}
+
+function returnToLobby() {
+  hideAllPopups();
+  $lobbyHome.hidden = true;
+  resetLevelProgress();
+  const panel = document.getElementById('slb-panel');
+  if (panel) panel.style.display = '';
+  const video = document.getElementById('slb-video');
+  if (video) { try { video.play(); } catch (e) {} }
+  document.querySelectorAll('.mode-card').forEach((b) => b.classList.remove('selected'));
+  currentMode  = null;
+  currentLevel = 0;
+  levelState   = 'idle';
+}
+
+$introStart.addEventListener('click', onIntroStart);
+$introSkip.addEventListener('click', onIntroSkip);
+$taskDone.addEventListener('click', onTaskDone);
+$wonNext.addEventListener('click', onWonNext);
+$wonReplay.addEventListener('click', onWonReplay);
+$outroRestart.addEventListener('click', onOutroRestart);
+$outroLobby.addEventListener('click', returnToLobby);
+$lobbyHome.addEventListener('click', returnToLobby);
+
+// Pre-load config so the first mode click is instant.
+loadLevelsConfig();
 </script>
 </body>
 </html>
