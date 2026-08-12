@@ -52,13 +52,45 @@ def main():
         if cdp.eval("typeof window.slbGame === 'object' && !!window.slbGame.flyToLevel"):
             break
         time.sleep(0.25)
-    else:
-        print("ERROR: slbGame never appeared"); sys.exit(1)
+
+    # Wait for model to be ready (computeLevelFlyView needs the loaded model)
+    model_ok = False
+    for _ in range(60):
+        ready = cdp.eval("""(() => {
+          const v = window.slbGame?.computeLevelFlyView(window.slbGame?.LEVEL_ROUTE?.[0]?.pos);
+          return !!v;
+        })()""")
+        if ready:
+            model_ok = True
+            break
+        time.sleep(0.5)
+    if not model_ok:
+        print("ERROR: model never loaded"); sys.exit(1)
+    print("✓ game.html loaded, model ready")
 
     # Run the regression script
     result = cdp.eval(script)
     print(json.dumps(result, indent=2))
-    if not result.get("ok"):
+
+    # Static source check: no Y arc bump in updateCameraFly (was causing
+    # floaty mid-flight). Also: camera.lookAt is called every frame so
+    # the marker doesn't snap into place at t=1.
+    import urllib.request
+    with urllib.request.urlopen(GAME_URL.replace("/index.html", "/game.html")) as r:
+        src = r.read().decode()
+    src_ok = True
+    if "camera.position.y += arc *" in src:
+        print("\n✗ Y arc bump still present in updateCameraFly — fly will feel floaty")
+        src_ok = False
+    if "camera.lookAt(controls.target)" not in src:
+        print("\n✗ camera.lookAt not called per frame — marker will snap at t=1")
+        src_ok = False
+    if "no arc bump, no overshoot" in src or "Straight lerp" in src:
+        print("✓ Fly animation is straight-lerp (no Y arc)")
+    else:
+        print("? Fly animation comment not found (may be reformatted)")
+
+    if not result.get("ok") or not src_ok:
         print("\n✗ Regression FAILED")
         sys.exit(1)
     print("\n✓ Regression PASSED")

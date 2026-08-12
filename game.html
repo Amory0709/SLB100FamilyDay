@@ -1447,11 +1447,20 @@ function updateCameraFly(now) {
   const { fromCam, toCam, fromTgt, toTgt, start, duration, levelIdx, onComplete } = cameraFlyAnim;
   const t = Math.min(1, (now - start) / duration);
   const e = easeInOutCubic(t);
-  const arc = Math.sin(t * Math.PI);
 
+  // Straight lerp cam + tgt in lockstep — no arc bump, no overshoot.
+  // Previous code had `camera.position.y += sin(t·π) * dist * 0.07` to give
+  // long flights a cinematic loop, but it made the fly feel floaty: the
+  // camera arced up 25u mid-flight for a 363u trip and dropped back, so
+  // the marker drifted across the screen instead of staying locked on it.
   camera.position.copy(fromCam).lerp(toCam, e);
-  camera.position.y += arc * fromCam.distanceTo(toCam) * 0.07;
   controls.target.copy(fromTgt).lerp(toTgt, e);
+  // Orient the camera to the current target every frame — otherwise the
+  // camera's quaternion is frozen mid-fly and only snaps to the new
+  // target when controls.update() fires at t=1, which makes the marker
+  // visibly jump at the end. We don't call controls.update() because
+  // enableDamping is on and it would compete with our lerp.
+  camera.lookAt(controls.target);
   camera.updateProjectionMatrix();
 
   if (t >= 1) {

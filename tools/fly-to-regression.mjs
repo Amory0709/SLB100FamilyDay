@@ -4,11 +4,12 @@
 //   - tgt equals marker position (so view centers on marker after fly)
 //   - cam is at a reasonable distance (not the "fit whole rig" distance)
 //   - the camera elevation is moderate (3/4 bird's-eye, not top-down)
+//   - the fly animation source has no Y arc bump (camera flies straight)
+//   - updateCameraFly calls camera.lookAt every frame (no quaternion jump
+//     at the end when controls.update() fires)
 //
 // Run via:
 //   python3 tools/fly-to-regression.py
-// (Driver in tools/fly-to-regression.py — opens headless Chrome, navigates,
-//  drains CDP events, runs this script via Runtime.evaluate.)
 
 (() => {
   const out = { ok: true, rows: [] };
