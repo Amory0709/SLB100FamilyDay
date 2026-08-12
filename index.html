@@ -483,42 +483,6 @@
   }
   .level-taskbar[hidden] { display: none; }
 
-  /* Center-screen level indicator — watermark style, no opaque plate so
-     the 3D model stays visible behind it. Shown for intro / task / won. */
-  .level-indicator {
-    position: fixed;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    z-index: 500;
-    pointer-events: none;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    font-family: 'SLBSans', system-ui, sans-serif;
-    font-weight: 800;
-    color: var(--level-color, #0014c8);
-    text-shadow:
-      0 0 18px rgba(255, 255, 255, 0.85),
-      0 2px 6px rgba(0, 0, 0, 0.18);
-    animation: level-indicator-in 0.55s cubic-bezier(0.34, 1.56, 0.64, 1);
-  }
-  .level-indicator[hidden] { display: none; }
-  .level-indicator-label {
-    font-size: 36px;
-    letter-spacing: 0.22em;
-    margin-bottom: -10px;
-  }
-  .level-indicator-num {
-    font-size: 220px;
-    line-height: 0.9;
-  }
-  @keyframes level-indicator-in {
-    0%   { opacity: 0; transform: translate(-50%, -50%) scale(0.55); }
-    100% { opacity: 1; transform: translate(-50%, -50%) scale(1); }
-  }
-  body.dev-mode .level-indicator { display: none !important; }
-
   .task-icon {
     font-size: 34px;
     line-height: 1;
@@ -756,12 +720,6 @@
   <span aria-hidden="true">🏠</span> 主菜单
 </button>
 
-<!-- Center-screen level number — visible during intro / task / won so the
-     user always knows which level they're on. Hidden on the lobby and outro. -->
-<div id="level-indicator" class="level-indicator" hidden aria-live="polite">
-  <div class="level-indicator-label">LV</div>
-  <div class="level-indicator-num" id="level-indicator-num">1</div>
-</div>
 
 <div id="slb-panel">
   <button id="gui-toggle" title="toggle GUI">⚙</button>
@@ -1582,18 +1540,28 @@ function computeLevelFlyView(posArr) {
   if (outward.lengthSq() < 4) outward.set(-0.85, 0, 0.42);
   outward.normalize();
 
-  // Camera: outward + elevated (3/4 bird's-eye view of the marker).
+  // The numbered badge sprite (canvas-textured circle) floats at marker-
+  // local y = 4.85 (gem at 3.55 + 1.3 above). After the marker group is
+  // scaled by `s` (see scaleMarkersToModel), that becomes 4.85*s above
+  // the marker base in world space. Aim the camera at the badge, not the
+  // marker ground pad, so the existing 3D number is what lands at the
+  // user's visual center after fly.
+  const size = box.getSize(new THREE.Vector3()).length();
+  const s = Math.max(size * 0.011, 0.72);
+  const badgeY = 4.85 * s;
+
+  // Camera: outward + elevated (3/4 bird's-eye view of the badge).
   const cam = new THREE.Vector3(
     anchor.x + outward.x * dist,
-    anchor.y + dist * 0.55,
+    anchor.y + badgeY + dist * 0.55,
     anchor.z + outward.z * dist
   );
 
-  // Target = the marker itself so it's centered on screen (old code used
-  // `(anchor.x, center.y, anchor.z)` which put the marker ~14° off-axis).
+  // Target = the badge's world position (horizontally on the marker, but
+  // lifted to the badge's Y so it sits at screen center).
   return {
     cam: [+cam.x.toFixed(4), +cam.y.toFixed(4), +cam.z.toFixed(4)],
-    tgt: [+anchor.x.toFixed(4), +anchor.y.toFixed(4), +anchor.z.toFixed(4)],
+    tgt: [+anchor.x.toFixed(4), +(anchor.y + badgeY).toFixed(4), +anchor.z.toFixed(4)],
   };
 }
 
@@ -2112,6 +2080,11 @@ window.slbGame = {
   getProgress: () => [...completedLevels],
   LEVEL_ROUTE,
   LEVEL_COLORS,
+  THREE,
+  camera,
+  controls,
+  scene,
+  isModelReady: () => !!model,
 };
 
 initLevelDevMode();
@@ -2328,11 +2301,6 @@ const $wonReplay   = document.getElementById('level-won-replay');
 const $outro        = document.getElementById('level-outro');
 const $outroText    = document.getElementById('level-outro-text');
 const $outroRestart = document.getElementById('level-outro-restart');
-
-// Center-screen watermark — always visible during a level so the user
-// knows which Lv they're on, even when the intro modal isn't up.
-const $levelIndicator = document.getElementById('level-indicator');
-const $levelIndicatorNum = document.getElementById('level-indicator-num');
 const $outroLobby   = document.getElementById('level-outro-lobby');
 
 const $lobbyHome = document.getElementById('lobby-home');
@@ -2358,26 +2326,11 @@ function getTotalLevels()   { return getModeConfig()?.levels.length ?? 0; }
 
 function applyLevelColor(cfg) {
   const c = cfg?.color || '#0014c8';
-  for (const el of [$intro, $task, $won, $outro, $levelIndicator]) {
+  for (const el of [$intro, $task, $won, $outro]) {
     if (el) el.style.setProperty('--level-color', c);
   }
 }
 
-// Show / refresh the center-screen level number. Call whenever the
-// current level changes; hide whenever we leave the level (lobby/outro).
-function showLevelIndicator(id) {
-  if (!$levelIndicator) return;
-  $levelIndicatorNum.textContent = String(id);
-  // Restart the enter animation by reapplying the class via reflow.
-  $levelIndicator.hidden = false;
-  $levelIndicator.style.animation = 'none';
-  // Force reflow so the animation restarts even if already shown.
-  void $levelIndicator.offsetWidth;
-  $levelIndicator.style.animation = '';
-}
-function hideLevelIndicator() {
-  if ($levelIndicator) $levelIndicator.hidden = true;
-}
 function hideAllPopups() {
   for (const el of [$intro, $task, $won, $outro]) el.hidden = true;
 }
@@ -2395,7 +2348,6 @@ function showIntro(id) {
   hideAllPopups();
   $intro.hidden = false;
   $lobbyHome.hidden = false;  // keep the 🏠 visible whenever a level is up
-  showLevelIndicator(cfg.id);
   levelState = 'intro';
 }
 
@@ -2428,7 +2380,6 @@ function showTask(id) {
   }
   hideAllPopups();
   $task.hidden = false;
-  showLevelIndicator(cfg.id);
   levelState = 'task';
 }
 
@@ -2450,7 +2401,6 @@ function showWon(id) {
   $wonProgress.textContent = `${cfg.id} / ${getTotalLevels()}`;
   hideAllPopups();
   $won.hidden = false;
-  showLevelIndicator(cfg.id);
   levelState = 'won';
 }
 
@@ -2460,7 +2410,6 @@ function showOutro() {
   hideAllPopups();
   $outro.hidden = false;
   $lobbyHome.hidden = true;
-  hideLevelIndicator();
   levelState = 'outro';
 }
 
@@ -2503,7 +2452,6 @@ function onOutroRestart() {
 
 function returnToLobby() {
   hideAllPopups();
-  hideLevelIndicator();
   $lobbyHome.hidden = true;
   resetLevelProgress();
   const panel = document.getElementById('slb-panel');
