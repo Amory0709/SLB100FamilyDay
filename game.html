@@ -1479,7 +1479,7 @@ function computeLevelFlyView(posArr) {
   };
 }
 
-function flyToLevel(levelId) {
+function flyToLevel(levelId, onComplete) {
   const slot = levelSlots[levelId - 1];
   if (!slot?.pos) return;
 
