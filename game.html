@@ -1047,6 +1047,7 @@ document.getElementById('slb-video-close').addEventListener('click', () => {
   const video = document.getElementById('slb-video');
   if (video) video.pause();
   if (panel) panel.style.display = 'none';
+  applyPanelAwareCamera();
   const home = document.getElementById('lobby-home');
   if (home) home.hidden = false;
 });
@@ -1075,6 +1076,7 @@ async function onModeCardClick(btn) {
   const video = document.getElementById('slb-video');
   if (video) video.pause();
   if (panel) panel.style.display = 'none';
+  applyPanelAwareCamera();
   $lobbyHome.hidden = false;
 
   showIntro(1);
@@ -2194,12 +2196,49 @@ async function loadModel() {
 
 loadModel();
 
-// ---------- Resize ----------
-addEventListener('resize', () => {
-  camera.aspect = innerWidth / innerHeight;
-  camera.updateProjectionMatrix();
+// ---------- Panel-aware camera projection ----------
+// When the right-side SLB panel is shown, shift the camera's projection
+// centre from screen-centre (X = innerWidth/2) to visible-area-centre
+// (X = (innerWidth - panelW)/2) so markers — which sit at the projection
+// centre after flyToLevel — land centred in the area not hidden by the
+// panel. Without this, every fly lands markers偏右 toward the panel edge.
+//
+// Implementation: setViewOffset shifts the projection frustum horizontally
+// without touching FOV or aspect (so model proportions stay the same).
+// The renderer viewport/scissor are restricted to the visible area, so the
+// pixels under the panel are left untouched (the panel paints over them).
+//
+// When the panel hides (level flow starts), clearViewOffset + full-window
+// viewport restore the standard centred projection.
+function applyPanelAwareCamera() {
+  const panel = document.getElementById('slb-panel');
+  const panelVisible = !!panel && getComputedStyle(panel).display !== 'none';
+  const panelW = panelVisible ? panel.offsetWidth : 0;
+  const visibleW = Math.max(1, innerWidth - panelW);
+
+  if (panelW > 0) {
+    // Projection centre (virtual (innerWidth/2, innerHeight/2)) lands at
+    // canvas X = innerWidth/2 - panelW/2 = visibleW/2.
+    camera.setViewOffset(innerWidth, innerHeight, panelW / 2, 0, innerWidth, innerHeight);
+    camera.aspect = innerWidth / innerHeight;
+    camera.updateProjectionMatrix();
+    renderer.setViewport(0, 0, visibleW, innerHeight);
+    renderer.setScissor(0, 0, visibleW, innerHeight);
+    renderer.setScissorTest(true);
+  } else {
+    camera.clearViewOffset();
+    camera.aspect = innerWidth / innerHeight;
+    camera.updateProjectionMatrix();
+    renderer.setViewport(0, 0, innerWidth, innerHeight);
+    renderer.setScissor(0, 0, innerWidth, innerHeight);
+    renderer.setScissorTest(false);
+  }
   renderer.setSize(innerWidth, innerHeight);
-});
+}
+
+// ---------- Resize ----------
+addEventListener('resize', applyPanelAwareCamera);
+applyPanelAwareCamera();
 
 // ---------- Fit camera + key light shadow camera to object ----------
 function fitToObject(obj, padding = 1.45) {
@@ -2456,6 +2495,7 @@ function returnToLobby() {
   resetLevelProgress();
   const panel = document.getElementById('slb-panel');
   if (panel) panel.style.display = '';
+  applyPanelAwareCamera();
   const video = document.getElementById('slb-video');
   if (video) { try { video.play(); } catch (e) {} }
   document.querySelectorAll('.mode-card').forEach((b) => b.classList.remove('selected'));
