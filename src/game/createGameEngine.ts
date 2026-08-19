@@ -4,12 +4,10 @@ import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import GUI from 'lil-gui';
 import {
-  CAM_KEY,
   GLB_MODEL_PATH,
   LEVEL_COLORS,
   LEVEL_DEV_KEY,
   LEVEL_LABELS,
-  LEVEL_PROGRESS_KEY,
   LEVEL_ROUTE,
   LEVEL_ZONE_WEIGHT,
   P1_CAM,
@@ -166,7 +164,6 @@ export function createGameEngine(
   let disposed = false;
   let rafId = 0;
   let _lastTick = performance.now();
-  let camSaveTimer: ReturnType<typeof setTimeout> | null = null;
 
   const levelSlots: LevelSlot[] = LEVEL_LABELS.map((label, i) => ({
     id: i + 1,
@@ -413,7 +410,6 @@ export function createGameEngine(
         controls.target.set(p.tgt[0], p.tgt[1], p.tgt[2]);
         camera.updateProjectionMatrix();
         controls.update();
-        saveCam();
       },
     },
     'goP1',
@@ -434,33 +430,6 @@ export function createGameEngine(
   controls.target.set(0, 0, 0);
   controls.minDistance = 4;
   controls.maxDistance = 600;
-
-  function saveCam() {
-    if (camSaveTimer) clearTimeout(camSaveTimer);
-    camSaveTimer = setTimeout(() => {
-      const cam = camera.position.toArray();
-      const tgt = controls.target.toArray();
-      try {
-        localStorage.setItem(CAM_KEY, JSON.stringify({ cam, tgt }));
-      } catch {
-        /* ignore quota errors */
-      }
-    }, 100);
-  }
-
-  function loadCam(): boolean {
-    try {
-      const raw = localStorage.getItem(CAM_KEY);
-      if (!raw) return false;
-      const { cam, tgt } = JSON.parse(raw) as { cam: number[]; tgt: number[] };
-      if (!Array.isArray(cam) || cam.length !== 3) return false;
-      camera.position.set(cam[0], cam[1], cam[2]);
-      if (Array.isArray(tgt) && tgt.length === 3) controls.target.set(tgt[0], tgt[1], tgt[2]);
-      return true;
-    } catch {
-      return false;
-    }
-  }
 
   function devFlash(msg: string) {
     console.log(`[dev] ${msg}`);
@@ -501,25 +470,6 @@ export function createGameEngine(
   function loadLevelRouteData() {
     if (DEV_MODE && loadLevelDevState()) return;
     applyLevelRouteDefaults();
-  }
-
-  function loadLevelProgress() {
-    completedLevels.clear();
-    try {
-      const raw = localStorage.getItem(LEVEL_PROGRESS_KEY);
-      if (!raw) return;
-      (JSON.parse(raw) as number[]).forEach((id) => completedLevels.add(id));
-    } catch (e) {
-      console.warn('level progress load failed', e);
-    }
-  }
-
-  function saveLevelProgress() {
-    try {
-      localStorage.setItem(LEVEL_PROGRESS_KEY, JSON.stringify([...completedLevels].sort()));
-    } catch {
-      /* ignore quota errors */
-    }
   }
 
   function cloneMeshMaterials(mesh: THREE.Mesh): THREE.MeshStandardMaterial[] {
@@ -796,7 +746,6 @@ export function createGameEngine(
       cameraFlyAnim = null;
       controls.enabled = true;
       controls.update();
-      saveCam();
       const slot = levelSlots[levelIdx];
       const gem = (slot?.marker?.userData as MarkerUserData | undefined)?.gem;
       const gemMat = gem?.material as THREE.MeshStandardMaterial | undefined;
@@ -826,7 +775,6 @@ export function createGameEngine(
     if (completedLevels.has(levelId)) return true;
 
     completedLevels.add(levelId);
-    saveLevelProgress();
     paintLevelZone(levelId, { animate: true });
     return true;
   }
@@ -835,7 +783,6 @@ export function createGameEngine(
     cancelLevelAnimations();
     [...completedLevels].forEach((id) => restoreLevelZone(id));
     completedLevels.clear();
-    saveLevelProgress();
     levelSlots.forEach((_, i) => updateLevelMarkerState(i));
   }
 
@@ -1369,7 +1316,6 @@ export function createGameEngine(
     controls.minDistance = dist * 0.25;
     controls.maxDistance = dist * 6;
     controls.update();
-    saveCam();
 
     const s = r * 1.6;
     key.shadow.camera.left = -s;
@@ -1425,19 +1371,11 @@ export function createGameEngine(
     model.add(routeGroup);
     rebuildLevelMarkers();
     indexModelMeshZones();
-    loadLevelProgress();
-    applySavedLevelColors();
 
     camera.position.set(P1_CAM[0], P1_CAM[1], P1_CAM[2]);
     controls.target.set(P1_TGT[0], P1_TGT[1], P1_TGT[2]);
     controls.update();
     camera.updateProjectionMatrix();
-    saveCam();
-
-    if (loadCam()) {
-      camera.updateProjectionMatrix();
-      controls.update();
-    }
 
     requestAnimationFrame(() => {
       callbacks.onLoadComplete?.();
@@ -1504,7 +1442,6 @@ export function createGameEngine(
     rafId = requestAnimationFrame(tick);
   }
 
-  controls.addEventListener('change', saveCam);
   window.addEventListener('resize', onResize);
 
   applyPanelAwareCamera(false, 0);
@@ -1517,9 +1454,7 @@ export function createGameEngine(
       if (disposed) return;
       disposed = true;
       cancelAnimationFrame(rafId);
-      if (camSaveTimer) clearTimeout(camSaveTimer);
       window.removeEventListener('resize', onResize);
-      controls.removeEventListener('change', saveCam);
       devCleanup.forEach((fn) => fn());
       cancelLevelAnimations();
       levelSlots.forEach((slot) => disposeMarker(slot.marker));

@@ -777,7 +777,6 @@ import GUI from 'lil-gui';
 // ---------- Dev mode (?dev=1 or #dev) — level-route point picking ----------
 const DEV_MODE = new URLSearchParams(location.search).has('dev') || location.hash === '#dev';
 const LEVEL_DEV_KEY = 'slb100_level_dev_v1';
-const LEVEL_PROGRESS_KEY = 'slb100_level_progress_v1';
 const LEVEL_COLORS = ['#7eedd0', '#ffe66d', '#ff8fab', '#e0b4ff'];
 // >1 shrinks that level's paint zone (weighted Voronoi). Lv2 yellow was too large.
 const LEVEL_ZONE_WEIGHT = [0.9, 1.7, 0.92, 0.88];
@@ -987,9 +986,9 @@ gui.add(params, 'reset').name('↺ Reset All');
 
 // ---------- Pin view positions (record a sequence for assistant) ----------
 const PIN_KEY = '***';
-// Hardcoded P1 — user's initial view (set 2026-07-28)
-const P1_CAM = [-149.21, 147.49, 155.24];
-const P1_TGT = [128.93, -14.50, -43.00];
+// Hardcoded P1 — user's initial view (set 2026-08-19, from slb100_camera_v1)
+const P1_CAM = [-126.8369, 122.6431, 104.4347];
+const P1_TGT = [-26.9801, 54.0251, 29.6439];
 let pinList = [];
 try { pinList = JSON.parse(localStorage.getItem(PIN_KEY) || '[]'); } catch (e) {}
 // Seed P1 in memory (so "回到 P1" works from first load, even before user records)
@@ -1028,7 +1027,6 @@ fPin.add({
     controls.target.set(p.tgt[0], p.tgt[1], p.tgt[2]);
     camera.updateProjectionMatrix();
     controls.update();
-    saveCam();
   }
 }, 'goP1').name('↩ 回到 P1');
 fPin.add({
@@ -1089,30 +1087,6 @@ const controls = new OrbitControls(camera, renderer.domElement);
 controls.enableDamping = true;
 controls.dampingFactor = 0.08;
 controls.target.set(0, 0, 0);
-
-// ---------- Camera state persistence (localStorage) ----------
-// Save: 鼠标拖动后 100ms 防抖；Load: 模型加载完才覆盖默认 fitToObject
-const CAM_KEY = '***';
-let camSaveTimer = null;
-function saveCam() {
-  clearTimeout(camSaveTimer);
-  camSaveTimer = setTimeout(() => {
-    const cam = camera.position.toArray();
-    const tgt = controls.target.toArray();
-    try { localStorage.setItem(CAM_KEY, JSON.stringify({ cam, tgt })); } catch (e) {}
-  }, 100);
-}
-function loadCam() {
-  try {
-    const raw = localStorage.getItem(CAM_KEY);
-    if (!raw) return false;
-    const { cam, tgt } = JSON.parse(raw);
-    if (!Array.isArray(cam) || cam.length !== 3) return false;
-    camera.position.set(cam[0], cam[1], cam[2]);
-    if (Array.isArray(tgt) && tgt.length === 3) controls.target.set(tgt[0], tgt[1], tgt[2]);
-    return true;
-  } catch (e) { return false; }
-}
 controls.minDistance = 4;
 controls.maxDistance = 600;
 // Auto-rotate: spins the model around its local Y axis each frame in tick().
@@ -1178,23 +1152,6 @@ function applyLevelRouteDefaults() {
 function loadLevelRouteData() {
   if (DEV_MODE && loadLevelDevState()) return;
   applyLevelRouteDefaults();
-}
-
-function loadLevelProgress() {
-  completedLevels.clear();
-  try {
-    const raw = localStorage.getItem(LEVEL_PROGRESS_KEY);
-    if (!raw) return;
-    JSON.parse(raw).forEach((id) => completedLevels.add(id));
-  } catch (e) {
-    console.warn('level progress load failed', e);
-  }
-}
-
-function saveLevelProgress() {
-  try {
-    localStorage.setItem(LEVEL_PROGRESS_KEY, JSON.stringify([...completedLevels].sort()));
-  } catch (e) {}
 }
 
 function cloneMeshMaterials(mesh) {
@@ -1473,7 +1430,6 @@ function updateCameraFly(now) {
     cameraFlyAnim = null;
     controls.enabled = true;
     controls.update();
-    saveCam();
     const slot = levelSlots[levelIdx];
     const gem = slot?.marker?.userData?.gem;
     if (gem?.material) {
@@ -1502,7 +1458,6 @@ function completeLevel(levelId) {
   if (completedLevels.has(levelId)) return true;
 
   completedLevels.add(levelId);
-  saveLevelProgress();
   paintLevelZone(levelId, { animate: true });
   return true;
 }
@@ -1511,7 +1466,6 @@ function resetLevelProgress() {
   cancelLevelAnimations();
   [...completedLevels].forEach((id) => restoreLevelZone(id));
   completedLevels.clear();
-  saveLevelProgress();
   levelSlots.forEach((_, i) => updateLevelMarkerState(i));
 }
 
@@ -2122,21 +2076,11 @@ function applyModel(gltf) {
   model.add(routeGroup);
   rebuildLevelMarkers();
   indexModelMeshZones();
-  loadLevelProgress();
-  applySavedLevelColors();
 
-  // Hardcoded default view (P1 from user, 2026-07-28)
   camera.position.set(P1_CAM[0], P1_CAM[1], P1_CAM[2]);
   controls.target.set(P1_TGT[0], P1_TGT[1], P1_TGT[2]);
   controls.update();
   camera.updateProjectionMatrix();
-  saveCam();  // persist P1 as the baseline
-
-  // If user has a saved camera from previous session, restore it
-  if (loadCam()) {
-    camera.updateProjectionMatrix();
-    controls.update();
-  }
 
   // Hide loading screen — wait one frame so the first render actually
   // has pixels before we fade; otherwise the viewer sees a black flash.
@@ -2264,7 +2208,6 @@ function fitToObject(obj, padding = 1.45) {
   controls.minDistance = dist * 0.25;
   controls.maxDistance = dist * 6;
   controls.update();
-  saveCam();  // 存 fitToObject 默认位置（用户没动过 camera 的话，刷新还是这个）
 
   // Key light shadow camera bounds — 包住模型 + 一点 padding
   const s = r * 1.6;
@@ -2276,9 +2219,6 @@ function fitToObject(obj, padding = 1.45) {
   key.shadow.camera.far    = dist * 6;
   key.shadow.camera.updateProjectionMatrix();
 }
-
-// ---------- Save camera on orbit/zoom ----------
-controls.addEventListener('change', saveCam);
 
 // ---------- Loop ----------
 let _lastTick = performance.now();

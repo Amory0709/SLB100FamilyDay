@@ -1,8 +1,6 @@
 export const GLB_MODEL_PATH = '/assets/models/slb-style-oil-rig.glb';
 
 export const LEVEL_DEV_KEY = 'slb100_level_dev_v1';
-export const LEVEL_PROGRESS_KEY = 'slb100_level_progress_v1';
-export const CAM_KEY = 'slb100_camera_v1';
 export const PIN_KEY = 'slb100_pin_views_v1';
 
 /** >1 shrinks that level's paint zone (weighted Voronoi). Lv2 yellow was too large. */
@@ -28,9 +26,9 @@ export const LEVEL_ROUTE: LevelRouteEntry[] = [
   { id: 4, label: 'Lv4', pos: [-34.4756, 44.1978, -47.2318] },
 ];
 
-/** Hardcoded P1 — user's initial view (set 2026-07-28) */
-export const P1_CAM: [number, number, number] = [-149.21, 147.49, 155.24];
-export const P1_TGT: [number, number, number] = [128.93, -14.5, -43.0];
+/** Hardcoded P1 — user's initial view (set 2026-08-19, from slb100_camera_v1) */
+export const P1_CAM: [number, number, number] = [-126.8369, 122.6431, 104.4347];
+export const P1_TGT: [number, number, number] = [-26.9801, 54.0251, 29.6439];
 
 export function isDevMode(): boolean {
   return new URLSearchParams(location.search).has('dev') || location.hash === '#dev';
