@@ -13,7 +13,7 @@ export function LevelTaskBar({ level, onComplete }: LevelTaskBarProps) {
   const gestures = level.gestures ?? [];
   const useRecognition = gestures.length > 0 && level.completionType === 'gesture';
 
-  const { videoRef, canvasRef, status, error, frame } = useGestureRecognizer(useRecognition);
+  const { previewWrapRef, status, error, frame } = useGestureRecognizer(useRecognition);
   const sequence = useGestureSequence(gestures, frame.gestureKey, useRecognition, frame);
   const completedRef = useRef(false);
 
@@ -68,12 +68,11 @@ export function LevelTaskBar({ level, onComplete }: LevelTaskBarProps) {
       </div>
 
       {useRecognition && (
-        <div className="gesture-camera-wrap large">
-          <video ref={videoRef} className="gesture-video" muted playsInline aria-hidden="true" />
-          <canvas ref={canvasRef} className="gesture-canvas" aria-hidden="true" />
+        <div ref={previewWrapRef} className="gesture-camera-wrap large">
           <div className="gesture-camera-badge">
             {status === 'loading' && '加载模型…'}
-            {status === 'running' && (frame.gestureKey ? `识别: ${frame.gestureKey}` : '等待手势…')}
+            {(status === 'ready' || status === 'running') &&
+              (frame.gestureKey ? `识别: ${frame.gestureKey}` : '等待手势…')}
             {status === 'error' && '识别不可用'}
           </div>
           {error && <div className="gesture-error">{error}</div>}

@@ -3,6 +3,7 @@ import type { GameMode, LevelFlowState, LevelsConfig } from '@/types/levels';
 import { getLevelConfig, getModeConfig, loadLevelsConfig } from '@/lib/levels';
 import { createGameEngine, type GameEngine } from '@/game/createGameEngine';
 import { LoaderOverlay } from '@/components/LoaderOverlay';
+import { useGestureRecognizerBoot } from '@/hooks/useGestureRecognizer';
 import { GameViewport } from '@/components/GameViewport';
 import { LobbyPanel } from '@/components/LobbyPanel';
 import { LevelIntroModal } from '@/components/LevelIntroModal';
@@ -10,6 +11,15 @@ import { LevelTaskBar } from '@/components/LevelTaskBar';
 import { LevelWonModal } from '@/components/LevelWonModal';
 import { LevelOutroModal } from '@/components/LevelOutroModal';
 import './App.css';
+
+import type { GestureRecognizerStatus } from '@/hooks/useGestureRecognizer';
+
+function mergeLoadStatus(modelText: string, gestureStatus: GestureRecognizerStatus): string {
+  const parts = [modelText];
+  if (gestureStatus === 'loading') parts.push('Loading gesture model…');
+  else if (gestureStatus === 'error') parts.push('Gesture unavailable');
+  return parts.join(' · ');
+}
 
 export default function App() {
   const viewportRef = useRef<HTMLDivElement>(null);
@@ -22,6 +32,12 @@ export default function App() {
   const [modelReady, setModelReady] = useState(false);
   const [showLoader, setShowLoader] = useState(true);
 
+  const { bootStatus: gestureBootStatus } = useGestureRecognizerBoot();
+  const gestureBootDone = gestureBootStatus === 'ready' || gestureBootStatus === 'error';
+  const modelProgressRef = useRef('Loading…');
+  const gestureBootStatusRef = useRef(gestureBootStatus);
+  gestureBootStatusRef.current = gestureBootStatus;
+
   const [lobbyVisible, setLobbyVisible] = useState(true);
   const [currentMode, setCurrentMode] = useState<GameMode | null>(null);
   const [currentLevel, setCurrentLevel] = useState(0);
@@ -32,16 +48,32 @@ export default function App() {
     void loadLevelsConfig().then(setLevelsConfig);
   }, []);
 
+  const updateLoadStatus = useCallback(() => {
+    setLoadStatus(mergeLoadStatus(modelProgressRef.current, gestureBootStatus));
+  }, [gestureBootStatus]);
+
+  useEffect(() => {
+    updateLoadStatus();
+  }, [updateLoadStatus]);
+
+  useEffect(() => {
+    if (modelReady && gestureBootDone && !loadError) {
+      setLoadStatus('Ready');
+      window.setTimeout(() => setShowLoader(false), 200);
+    }
+  }, [modelReady, gestureBootDone, loadError]);
+
   useEffect(() => {
     const el = viewportRef.current;
     if (!el) return;
 
     const engine = createGameEngine(el, {
-      onLoadProgress: (_bytes, text) => setLoadStatus(text),
+      onLoadProgress: (_bytes, text) => {
+        modelProgressRef.current = text;
+        setLoadStatus(mergeLoadStatus(text, gestureBootStatusRef.current));
+      },
       onLoadComplete: () => {
         setModelReady(true);
-        setLoadStatus('Ready');
-        window.setTimeout(() => setShowLoader(false), 200);
       },
       onLoadError: (err) => {
         const msg = err instanceof Error ? err.message : 'Failed to load 3D model';
