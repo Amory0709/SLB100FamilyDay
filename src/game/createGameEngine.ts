@@ -945,7 +945,7 @@ export function createGameEngine(
 
     ctx.beginPath();
     ctx.arc(r, r, r * 0.78, 0, Math.PI * 2);
-    ctx.fillStyle = completed ? '#ffffff' : 'rgba(0, 10, 80, 0.92)';
+    ctx.fillStyle = completed ? '#ffffff' : '#0014c8';
     ctx.fill();
 
     ctx.lineWidth = size * 0.055;

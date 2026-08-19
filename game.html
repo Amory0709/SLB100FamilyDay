@@ -86,7 +86,6 @@
     text-align: center;
     /* margin-top auto anchors h1 to the bottom of the panel so the
        whole text block (h1 + h2) sits just above the mode cards. */
-    margin-top: auto;
   }
   .panel-text h1 {
     margin: 0;
@@ -99,6 +98,7 @@
   }
   .mode-prompt {
     margin: 0;
+    margin-top: auto;
     font-size: clamp(13px, 1.0vw, 18px);
     font-weight: 400;
     letter-spacing: 1.8px;
@@ -1652,7 +1652,7 @@ function drawLevelBadge(ctx, size, levelNum, accentHex, completed) {
 
   ctx.beginPath();
   ctx.arc(r, r, r * 0.78, 0, Math.PI * 2);
-  ctx.fillStyle = completed ? '#ffffff' : 'rgba(0, 10, 80, 0.92)';
+  ctx.fillStyle = completed ? '#ffffff' : '#0014c8';
   ctx.fill();
 
   ctx.lineWidth = size * 0.055;

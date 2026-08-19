@@ -3,8 +3,11 @@ import {
   FilesetResolver,
   GestureRecognizer,
   type GestureRecognizerResult,
+  type NormalizedLandmark,
 } from '@mediapipe/tasks-vision';
 import { resolveGestureKey } from '@/lib/gestures/mapping';
+import { MultiHandLandmarkSmoother, DEFAULT_LANDMARK_SMOOTHER_OPTIONS } from '@/lib/gestures/landmarkSmoothing';
+import { GestureKeyStabilizer } from '@/lib/gestures/gestureStabilizer';
 
 const WASM_URL = 'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.20/wasm';
 const MODEL_URL =
@@ -25,6 +28,8 @@ export function useGestureRecognizer(active: boolean) {
   const rafRef = useRef<number>(0);
   const lastVideoTimeRef = useRef(-1);
   const streamRef = useRef<MediaStream | null>(null);
+  const landmarkSmootherRef = useRef(new MultiHandLandmarkSmoother(DEFAULT_LANDMARK_SMOOTHER_OPTIONS));
+  const gestureStabilizerRef = useRef(new GestureKeyStabilizer());
 
   const [status, setStatus] = useState<GestureRecognizerStatus>('idle');
   const [error, setError] = useState<string | null>(null);
@@ -34,41 +39,48 @@ export function useGestureRecognizer(active: boolean) {
     score: 0,
   });
 
-  const drawPreview = useCallback((result: GestureRecognizerResult, video: HTMLVideoElement) => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return;
+  const drawPreview = useCallback(
+    (landmarks: NormalizedLandmark[][], video: HTMLVideoElement) => {
+      const canvas = canvasRef.current;
+      if (!canvas) return;
+      const ctx = canvas.getContext('2d');
+      if (!ctx) return;
 
-    if (canvas.width !== video.videoWidth || canvas.height !== video.videoHeight) {
-      canvas.width = video.videoWidth;
-      canvas.height = video.videoHeight;
-    }
-
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-
-    for (const landmarks of result.landmarks ?? []) {
-      ctx.fillStyle = '#7dff9a';
-      for (const p of landmarks) {
-        ctx.beginPath();
-        ctx.arc(p.x * canvas.width, p.y * canvas.height, 4, 0, Math.PI * 2);
-        ctx.fill();
+      if (canvas.width !== video.videoWidth || canvas.height !== video.videoHeight) {
+        canvas.width = video.videoWidth;
+        canvas.height = video.videoHeight;
       }
-    }
-  }, []);
 
-  const processResult = useCallback((result: GestureRecognizerResult) => {
-    const top = result.gestures?.[0]?.[0];
-    const mpCategory = top?.categoryName && top.categoryName !== 'None' ? top.categoryName : null;
-    const landmarks = result.landmarks?.[0];
-    const gestureKey = resolveGestureKey(mpCategory ?? undefined, landmarks);
-    setFrame({
-      gestureKey,
-      mpCategory,
-      score: top?.score ?? 0,
-    });
-  }, []);
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+      for (const hand of landmarks) {
+        ctx.fillStyle = '#7dff9a';
+        for (const p of hand) {
+          ctx.beginPath();
+          ctx.arc(p.x * canvas.width, p.y * canvas.height, 4, 0, Math.PI * 2);
+          ctx.fill();
+        }
+      }
+    },
+    [],
+  );
+
+  const processResult = useCallback(
+    (result: GestureRecognizerResult, smoothedLandmarks: NormalizedLandmark[][]) => {
+      const top = result.gestures?.[0]?.[0];
+      const mpCategory = top?.categoryName && top.categoryName !== 'None' ? top.categoryName : null;
+      const landmarks = smoothedLandmarks[0];
+      const rawGestureKey = resolveGestureKey(mpCategory ?? undefined, landmarks);
+      const gestureKey = gestureStabilizerRef.current.update(rawGestureKey);
+      setFrame({
+        gestureKey,
+        mpCategory,
+        score: top?.score ?? 0,
+      });
+    },
+    [],
+  );
 
   const loop = useCallback(() => {
     const video = videoRef.current;
@@ -80,9 +92,18 @@ export function useGestureRecognizer(active: boolean) {
 
     if (video.currentTime !== lastVideoTimeRef.current) {
       lastVideoTimeRef.current = video.currentTime;
-      const result = recognizer.recognizeForVideo(video, performance.now());
-      processResult(result);
-      drawPreview(result, video);
+      const timestamp = performance.now();
+      const result = recognizer.recognizeForVideo(video, timestamp);
+      const rawLandmarks = result.landmarks ?? [];
+      let smoothedLandmarks = rawLandmarks;
+      if (rawLandmarks.length > 0) {
+        smoothedLandmarks = landmarkSmootherRef.current.smooth(rawLandmarks, timestamp);
+      } else {
+        landmarkSmootherRef.current.reset();
+        gestureStabilizerRef.current.reset();
+      }
+      processResult(result, smoothedLandmarks);
+      drawPreview(smoothedLandmarks, video);
     }
 
     rafRef.current = requestAnimationFrame(loop);
@@ -105,9 +126,9 @@ export function useGestureRecognizer(active: boolean) {
             baseOptions: { modelAssetPath: MODEL_URL, delegate: 'GPU' },
             runningMode: 'VIDEO',
             numHands: 2,
-            minHandDetectionConfidence: 0.5,
-            minHandPresenceConfidence: 0.5,
-            minTrackingConfidence: 0.5,
+            minHandDetectionConfidence: 0.55,
+            minHandPresenceConfidence: 0.55,
+            minTrackingConfidence: 0.6,
           });
         } catch {
           recognizer = await GestureRecognizer.createFromOptions(vision, {
@@ -166,6 +187,8 @@ export function useGestureRecognizer(active: boolean) {
       streamRef.current = null;
       recognizerRef.current?.close();
       recognizerRef.current = null;
+      landmarkSmootherRef.current.reset();
+      gestureStabilizerRef.current.reset();
       lastVideoTimeRef.current = -1;
       setStatus('idle');
       setFrame({ gestureKey: null, mpCategory: null, score: 0 });
