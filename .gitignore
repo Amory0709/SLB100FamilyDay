@@ -10,5 +10,9 @@ __pycache__/
 .vscode/
 .idea/
 
+# Node / Vite
+node_modules/
+dist/
+
 # 大文件（已经在 zip 里）
 # piattaforma_white.glb 留作主分支一份；.zip 是网页分发用

@@ -54,8 +54,8 @@
 | `intro` | ✓ | 介绍卡正文 — 关卡背景说明 |
 | `task` | ✓ | 任务卡正文 — 要做什么 |
 | `taskIcon` | | 任务卡左边的大 emoji (默认 🎯) |
-| `completionType` | ✓ | `"manual"` = 用户点 [我完成了];其他类型 v1 未实现 |
-| `gestures` | | 任务手势清单 — 显示成 chip 列表,无实际识别 |
+| `completionType` | ✓ | `"gesture"` = MediaPipe 顺序识别后自动过关；`"manual"` = 用户点 [我完成了] |
+| `gestures` | | 任务手势清单 — 显示 chip + 识别目标（需 `gestureKey`） |
 | `reward` | | 完成卡上的奖励文字 |
 | `color` | | 关卡主题色 — 弹窗边条 + marker 配色 |
 

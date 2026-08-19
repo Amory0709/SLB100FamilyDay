@@ -1,0 +1,973 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>SLB 100 · Holistic Motion Capture</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; }
+
+  :root {
+    --slb-blue: #0014c8;
+    --slb-deep: #000a5e;
+    --glow-cyan: #5ee7ff;
+    --glow-pink: #ff6bcb;
+    --glow-lime: #7dff9a;
+    --glass: rgba(255, 255, 255, 0.08);
+    --glass-border: rgba(255, 255, 255, 0.14);
+  }
+
+  html, body {
+    margin: 0;
+    height: 100%;
+    overflow: hidden;
+    font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, sans-serif;
+    background: var(--slb-deep);
+    color: #fff;
+  }
+
+  /* animated mesh background */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background:
+      radial-gradient(ellipse 80% 60% at 20% 80%, rgba(0, 20, 200, 0.55), transparent 60%),
+      radial-gradient(ellipse 70% 50% at 85% 15%, rgba(94, 231, 255, 0.12), transparent 55%),
+      radial-gradient(ellipse 50% 40% at 50% 50%, rgba(255, 107, 203, 0.06), transparent 50%),
+      linear-gradient(160deg, #000428 0%, var(--slb-deep) 40%, #001080 100%);
+    z-index: 0;
+  }
+
+  body::after {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image:
+      linear-gradient(rgba(255,255,255,0.025) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(255,255,255,0.025) 1px, transparent 1px);
+    background-size: 48px 48px;
+    mask-image: radial-gradient(ellipse 90% 80% at 50% 50%, black 30%, transparent 100%);
+    z-index: 0;
+    pointer-events: none;
+  }
+
+  #app {
+    position: relative;
+    z-index: 1;
+    display: grid;
+    grid-template-rows: auto 1fr auto;
+    height: 100%;
+    padding: clamp(12px, 2vw, 24px);
+    gap: clamp(12px, 2vw, 20px);
+  }
+
+  /* ---- header ---- */
+  header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    flex-wrap: wrap;
+  }
+
+  .brand {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+  }
+
+  .brand-mark {
+    width: 44px;
+    height: 44px;
+    border-radius: 12px;
+    background: linear-gradient(135deg, var(--slb-blue), #0030ff);
+    display: grid;
+    place-items: center;
+    font-weight: 700;
+    font-size: 11px;
+    letter-spacing: 0.5px;
+    box-shadow: 0 0 24px rgba(0, 20, 200, 0.6);
+  }
+
+  .brand-text h1 {
+    margin: 0;
+    font-size: clamp(18px, 2.2vw, 26px);
+    font-weight: 600;
+    letter-spacing: 0.4px;
+  }
+
+  .brand-text p {
+    margin: 2px 0 0;
+    font-size: 12px;
+    opacity: 0.65;
+    letter-spacing: 1.2px;
+    text-transform: uppercase;
+  }
+
+  .stats {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+  }
+
+  .stat-chip {
+    background: var(--glass);
+    border: 1px solid var(--glass-border);
+    backdrop-filter: blur(12px);
+    border-radius: 999px;
+    padding: 6px 14px;
+    font-size: 12px;
+    letter-spacing: 0.6px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .stat-dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: #555;
+  }
+
+  .stat-dot.live { background: var(--glow-lime); box-shadow: 0 0 8px var(--glow-lime); animation: pulse 1.6s ease infinite; }
+  .stat-dot.loading { background: #ffd166; animation: pulse 0.8s ease infinite; }
+
+  @keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.4; }
+  }
+
+  /* ---- main stage ---- */
+  main {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: clamp(12px, 2vw, 20px);
+    min-height: 0;
+  }
+
+  @media (max-width: 900px) {
+    main { grid-template-columns: 1fr; grid-template-rows: 1fr auto; }
+  }
+
+  .stage-wrap {
+    position: relative;
+    min-height: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .stage-frame {
+    position: relative;
+    width: min(100%, calc((100vh - 180px) * 4 / 3));
+    aspect-ratio: 4 / 3;
+    max-height: 100%;
+    border-radius: 20px;
+    overflow: hidden;
+    box-shadow:
+      0 0 0 1px rgba(255,255,255,0.1),
+      0 0 60px rgba(0, 20, 200, 0.45),
+      0 24px 80px rgba(0, 0, 0, 0.5);
+  }
+
+  .stage-frame::before {
+    content: '';
+    position: absolute;
+    inset: -2px;
+    border-radius: 22px;
+    background: linear-gradient(135deg, var(--glow-cyan), var(--slb-blue), var(--glow-pink));
+    z-index: -1;
+    opacity: 0.35;
+    filter: blur(1px);
+  }
+
+  #video {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    transform: scaleX(-1);
+    opacity: 0;
+    pointer-events: none;
+  }
+
+  #canvas {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    transform: scaleX(-1);
+  }
+
+  .stage-overlay {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    background: linear-gradient(180deg, rgba(0,0,0,0.35) 0%, transparent 25%, transparent 75%, rgba(0,0,0,0.4) 100%);
+  }
+
+  .corner-tag {
+    position: absolute;
+    top: 14px;
+    left: 14px;
+    background: rgba(0, 0, 0, 0.45);
+    backdrop-filter: blur(8px);
+    border: 1px solid rgba(255,255,255,0.12);
+    border-radius: 8px;
+    padding: 5px 10px;
+    font-size: 10px;
+    letter-spacing: 1.4px;
+    text-transform: uppercase;
+    color: var(--glow-cyan);
+  }
+
+  /* idle / loading screen inside stage */
+  #idle-screen {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 20px;
+    background: rgba(0, 6, 40, 0.85);
+    backdrop-filter: blur(6px);
+    z-index: 5;
+    transition: opacity 0.5s ease;
+  }
+
+  #idle-screen.hidden {
+    opacity: 0;
+    pointer-events: none;
+  }
+
+  .idle-icon {
+    width: 72px;
+    height: 72px;
+    border-radius: 50%;
+    border: 2px solid rgba(94, 231, 255, 0.4);
+    display: grid;
+    place-items: center;
+    animation: ring-spin 3s linear infinite;
+  }
+
+  .idle-icon svg { width: 32px; height: 32px; fill: var(--glow-cyan); opacity: 0.9; }
+
+  @keyframes ring-spin {
+    0% { box-shadow: 0 0 0 0 rgba(94,231,255,0.3); }
+    50% { box-shadow: 0 0 0 16px rgba(94,231,255,0); }
+    100% { box-shadow: 0 0 0 0 rgba(94,231,255,0); }
+  }
+
+  #idle-screen h2 {
+    margin: 0;
+    font-size: 18px;
+    font-weight: 500;
+    opacity: 0.9;
+  }
+
+  #idle-screen p {
+    margin: 0;
+    font-size: 13px;
+    opacity: 0.55;
+    max-width: 260px;
+    text-align: center;
+    line-height: 1.5;
+  }
+
+  #start-btn {
+    margin-top: 8px;
+    padding: 14px 32px;
+    border: 0;
+    border-radius: 999px;
+    background: linear-gradient(135deg, var(--slb-blue), #0038ff);
+    color: #fff;
+    font: inherit;
+    font-size: 14px;
+    font-weight: 600;
+    letter-spacing: 0.8px;
+    cursor: pointer;
+    box-shadow: 0 4px 24px rgba(0, 20, 200, 0.55);
+    transition: transform 0.15s ease, box-shadow 0.15s ease;
+  }
+
+  #start-btn:hover { transform: translateY(-2px); box-shadow: 0 8px 32px rgba(0, 20, 200, 0.7); }
+  #start-btn:focus-visible { outline: 2px solid var(--glow-cyan); outline-offset: 3px; }
+  #start-btn:disabled { opacity: 0.5; cursor: wait; transform: none; }
+
+  /* ---- side panel ---- */
+  aside {
+    width: clamp(240px, 22vw, 300px);
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    min-height: 0;
+  }
+
+  @media (max-width: 900px) {
+    aside { width: 100%; flex-direction: row; flex-wrap: wrap; }
+    .panel { flex: 1 1 160px; }
+  }
+
+  .panel {
+    background: var(--glass);
+    border: 1px solid var(--glass-border);
+    backdrop-filter: blur(16px);
+    border-radius: 16px;
+    padding: 16px;
+  }
+
+  .panel h3 {
+    margin: 0 0 12px;
+    font-size: 11px;
+    letter-spacing: 1.6px;
+    text-transform: uppercase;
+    opacity: 0.55;
+    font-weight: 500;
+  }
+
+  .legend {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .legend-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 13px;
+  }
+
+  .legend-swatch {
+    width: 28px;
+    height: 4px;
+    border-radius: 2px;
+    flex-shrink: 0;
+  }
+
+  .legend-swatch.pose { background: var(--glow-cyan); box-shadow: 0 0 8px var(--glow-cyan); }
+  .legend-swatch.face { background: var(--glow-pink); box-shadow: 0 0 8px var(--glow-pink); }
+  .legend-swatch.hand-l { background: var(--glow-lime); box-shadow: 0 0 8px var(--glow-lime); }
+  .legend-swatch.hand-r { background: #6eb5ff; box-shadow: 0 0 8px #6eb5ff; }
+
+  .toggles {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .toggle-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    font-size: 13px;
+    cursor: pointer;
+    user-select: none;
+  }
+
+  .toggle-row input { display: none; }
+
+  .toggle-track {
+    width: 40px;
+    height: 22px;
+    border-radius: 999px;
+    background: rgba(255,255,255,0.15);
+    position: relative;
+    transition: background 0.2s;
+    flex-shrink: 0;
+  }
+
+  .toggle-track::after {
+    content: '';
+    position: absolute;
+    top: 3px;
+    left: 3px;
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    background: #fff;
+    transition: transform 0.2s;
+  }
+
+  .toggle-row input:checked + .toggle-track {
+    background: var(--slb-blue);
+  }
+
+  .toggle-row input:checked + .toggle-track::after {
+    transform: translateX(18px);
+  }
+
+  .count-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+  }
+
+  .count-cell {
+    background: rgba(0,0,0,0.25);
+    border-radius: 10px;
+    padding: 10px;
+    text-align: center;
+  }
+
+  .count-cell .num {
+    font-size: 22px;
+    font-weight: 700;
+    line-height: 1;
+    background: linear-gradient(135deg, #fff, var(--glow-cyan));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  .count-cell .lbl {
+    font-size: 10px;
+    opacity: 0.5;
+    letter-spacing: 0.8px;
+    margin-top: 4px;
+    text-transform: uppercase;
+  }
+
+  /* ---- footer ---- */
+  footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    flex-wrap: wrap;
+    font-size: 11px;
+    opacity: 0.45;
+    letter-spacing: 0.5px;
+  }
+
+  footer a {
+    color: var(--glow-cyan);
+    text-decoration: none;
+  }
+
+  footer a:hover { text-decoration: underline; }
+
+  #error-toast {
+    position: fixed;
+    bottom: 24px;
+    left: 50%;
+    transform: translateX(-50%) translateY(80px);
+    background: rgba(180, 30, 30, 0.92);
+    border: 1px solid rgba(255,100,100,0.4);
+    backdrop-filter: blur(10px);
+    border-radius: 12px;
+    padding: 12px 20px;
+    font-size: 13px;
+    z-index: 100;
+    transition: transform 0.35s ease;
+    max-width: 90vw;
+    text-align: center;
+  }
+
+  #error-toast.show { transform: translateX(-50%) translateY(0); }
+</style>
+</head>
+<body>
+<div id="app">
+  <header>
+    <div class="brand">
+      <div class="brand-mark" aria-hidden="true">SLB</div>
+      <div class="brand-text">
+        <h1>全息动补 · Holistic Tracking</h1>
+        <p>MediaPipe · Browser · Local AI</p>
+      </div>
+    </div>
+    <div class="stats">
+      <div class="stat-chip"><span class="stat-dot" id="status-dot"></span><span id="status-text">待启动</span></div>
+      <div class="stat-chip"><span id="fps-text">— FPS</span></div>
+      <div class="stat-chip"><span id="landmark-text">543 关键点</span></div>
+    </div>
+  </header>
+
+  <main>
+    <div class="stage-wrap">
+      <div class="stage-frame" role="img" aria-label="摄像头与全息骨架实时预览">
+        <video id="video" autoplay muted playsinline aria-hidden="true"></video>
+        <canvas id="canvas" aria-hidden="true"></canvas>
+        <div class="stage-overlay" aria-hidden="true"></div>
+        <div class="corner-tag" id="mode-tag">Holistic</div>
+
+        <div id="idle-screen">
+          <div class="idle-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24"><path d="M12 2a3 3 0 1 1 0 6 3 3 0 0 1 0-6zm-5 8a2 2 0 0 0-2 2v1.5a1.5 1.5 0 0 0 3 0V12a2 2 0 0 0-2-2h10a2 2 0 0 0-2 2v1.5a1.5 1.5 0 0 0 3 0V12a2 2 0 0 0-2-2H7zm-1 6.5a1.5 1.5 0 0 0-3 0V20a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-3.5a1.5 1.5 0 0 0-3 0V20H6v-3.5z"/></svg>
+          </div>
+          <h2 id="idle-title">开启摄像头体验全息感知</h2>
+          <p>全身 33 点 · 面部 468 点 · 双手各 21 点。所有推理在浏览器本地完成，视频不上传。</p>
+          <button id="start-btn" type="button">启动摄像头</button>
+        </div>
+      </div>
+    </div>
+
+    <aside>
+      <div class="panel">
+        <h3>图例</h3>
+        <div class="legend">
+          <div class="legend-item"><span class="legend-swatch pose"></span>身体骨架</div>
+          <div class="legend-item"><span class="legend-swatch face"></span>面部网格</div>
+          <div class="legend-item"><span class="legend-swatch hand-l"></span>左手</div>
+          <div class="legend-item"><span class="legend-swatch hand-r"></span>右手</div>
+        </div>
+      </div>
+
+      <div class="panel">
+        <h3>显示选项</h3>
+        <div class="toggles">
+          <label class="toggle-row">
+            <span>身体骨架</span>
+            <input type="checkbox" id="show-pose" checked>
+            <span class="toggle-track"></span>
+          </label>
+          <label class="toggle-row">
+            <span>面部网格</span>
+            <input type="checkbox" id="show-face" checked>
+            <span class="toggle-track"></span>
+          </label>
+          <label class="toggle-row">
+            <span>双手追踪</span>
+            <input type="checkbox" id="show-hands" checked>
+            <span class="toggle-track"></span>
+          </label>
+          <label class="toggle-row">
+            <span>发光效果</span>
+            <input type="checkbox" id="show-glow" checked>
+            <span class="toggle-track"></span>
+          </label>
+          <label class="toggle-row">
+            <span>显示摄像头</span>
+            <input type="checkbox" id="show-video" checked>
+            <span class="toggle-track"></span>
+          </label>
+        </div>
+      </div>
+
+      <div class="panel">
+        <h3>检测统计</h3>
+        <div class="count-grid">
+          <div class="count-cell"><div class="num" id="cnt-pose">0</div><div class="lbl">姿态点</div></div>
+          <div class="count-cell"><div class="num" id="cnt-face">0</div><div class="lbl">面部点</div></div>
+          <div class="count-cell"><div class="num" id="cnt-lhand">0</div><div class="lbl">左手</div></div>
+          <div class="count-cell"><div class="num" id="cnt-rhand">0</div><div class="lbl">右手</div></div>
+        </div>
+      </div>
+    </aside>
+  </main>
+
+  <footer>
+    <span>Powered by Google MediaPipe Holistic · 本地推理 · 隐私安全</span>
+    <a href="game.html">← 返回主页面</a>
+  </footer>
+</div>
+
+<div id="error-toast" role="alert" aria-live="assertive"></div>
+
+<script type="module">
+import {
+  HolisticLandmarker,
+  FilesetResolver,
+} from 'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.20/vision_bundle.mjs';
+
+// ---- connection topology ----
+const POSE_CONNECTIONS = [
+  [0,1],[1,2],[2,3],[3,7],[0,4],[4,5],[5,6],[6,8],
+  [9,10],[11,12],[11,13],[13,15],[15,17],[15,19],[15,21],[17,19],
+  [12,14],[14,16],[16,18],[16,20],[16,22],[18,20],
+  [11,23],[12,24],[23,24],[23,25],[24,26],[25,27],[26,28],
+  [27,29],[28,30],[29,31],[30,32],[27,31],[28,32],
+];
+
+const HAND_CONNECTIONS = [
+  [0,1],[1,2],[2,3],[3,4],[0,5],[5,6],[6,7],[7,8],
+  [0,9],[9,10],[10,11],[11,12],[0,13],[13,14],[14,15],[15,16],
+  [0,17],[17,18],[18,19],[19,20],[5,9],[9,13],[13,17],
+];
+
+const FACE_OVAL = [
+  10,338,297,332,284,251,389,356,454,323,361,288,397,365,379,378,
+  400,377,152,148,176,149,150,136,172,58,132,93,234,127,162,21,54,103,67,109,
+];
+
+const FACE_MESH_SPARSE = [
+  [10,338],[338,297],[297,332],[332,284],[284,251],[251,389],[389,356],[356,454],
+  [454,323],[323,361],[361,288],[288,397],[397,365],[365,379],[379,378],[378,400],
+  [400,377],[377,152],[152,148],[148,176],[176,149],[149,150],[150,136],[136,172],
+  [172,58],[58,132],[132,93],[93,234],[234,127],[127,162],[162,21],[21,54],[54,103],
+  [103,67],[67,109],[109,10],
+  [33,133],[133,173],[173,157],[157,158],[158,159],[159,160],[160,161],[161,246],
+  [246,33],[263,362],[362,398],[398,384],[384,385],[385,386],[386,387],[387,388],
+  [388,466],[466,263],
+  [61,146],[146,91],[91,181],[181,84],[84,17],[17,314],[314,405],[405,321],
+  [321,375],[375,291],[291,61],
+];
+
+// ---- DOM ----
+const video = document.getElementById('video');
+const canvas = document.getElementById('canvas');
+const ctx = canvas.getContext('2d');
+const startBtn = document.getElementById('start-btn');
+const idleScreen = document.getElementById('idle-screen');
+const idleTitle = document.getElementById('idle-title');
+const statusDot = document.getElementById('status-dot');
+const statusText = document.getElementById('status-text');
+const fpsText = document.getElementById('fps-text');
+const errorToast = document.getElementById('error-toast');
+
+const opts = {
+  pose: document.getElementById('show-pose'),
+  face: document.getElementById('show-face'),
+  hands: document.getElementById('show-hands'),
+  glow: document.getElementById('show-glow'),
+  video: document.getElementById('show-video'),
+};
+
+const counts = {
+  pose: document.getElementById('cnt-pose'),
+  face: document.getElementById('cnt-face'),
+  lhand: document.getElementById('cnt-lhand'),
+  rhand: document.getElementById('cnt-rhand'),
+};
+
+// ---- state ----
+let landmarker = null;
+let running = false;
+let lastVideoTime = -1;
+let smoothState = null;
+const SMOOTH = 0.35;
+
+// ---- helpers ----
+function showError(msg) {
+  errorToast.textContent = msg;
+  errorToast.classList.add('show');
+  setTimeout(() => errorToast.classList.remove('show'), 5000);
+}
+
+function setStatus(state, text) {
+  statusDot.className = 'stat-dot' + (state ? ` ${state}` : '');
+  statusText.textContent = text;
+}
+
+function lerpLandmarks(prev, curr, alpha) {
+  if (!prev || !curr || prev.length !== curr.length) return curr;
+  return curr.map((p, i) => ({
+    x: prev[i].x + (p.x - prev[i].x) * alpha,
+    y: prev[i].y + (p.y - prev[i].y) * alpha,
+    z: (prev[i].z ?? 0) + ((p.z ?? 0) - (prev[i].z ?? 0)) * alpha,
+    visibility: p.visibility ?? prev[i].visibility,
+  }));
+}
+
+function smoothResults(result) {
+  const key = JSON.stringify([
+    result.poseLandmarks?.length ?? 0,
+    result.faceLandmarks?.length ?? 0,
+    result.leftHandLandmarks?.length ?? 0,
+    result.rightHandLandmarks?.length ?? 0,
+  ]);
+  if (!smoothState || smoothState.key !== key) {
+    smoothState = { key, pose: null, face: null, lHand: null, rHand: null };
+  }
+  const out = {};
+  if (result.poseLandmarks?.[0]) {
+    smoothState.pose = lerpLandmarks(smoothState.pose, result.poseLandmarks[0], SMOOTH);
+    out.poseLandmarks = [smoothState.pose];
+  }
+  if (result.faceLandmarks?.[0]) {
+    smoothState.face = lerpLandmarks(smoothState.face, result.faceLandmarks[0], SMOOTH);
+    out.faceLandmarks = [smoothState.face];
+  }
+  if (result.leftHandLandmarks?.[0]) {
+    smoothState.lHand = lerpLandmarks(smoothState.lHand, result.leftHandLandmarks[0], SMOOTH);
+    out.leftHandLandmarks = [smoothState.lHand];
+  }
+  if (result.rightHandLandmarks?.[0]) {
+    smoothState.rHand = lerpLandmarks(smoothState.rHand, result.rightHandLandmarks[0], SMOOTH);
+    out.rightHandLandmarks = [smoothState.rHand];
+  }
+  return out;
+}
+
+function toPx(lm, w, h) {
+  return { x: lm.x * w, y: lm.y * h, z: lm.z ?? 0, v: lm.visibility ?? 1 };
+}
+
+function drawConnections(landmarks, connections, color, lineW, glow) {
+  if (!landmarks?.length) return;
+  const pts = landmarks[0].map(lm => toPx(lm, canvas.width, canvas.height));
+  ctx.lineCap = 'round';
+  ctx.lineJoin = 'round';
+
+  if (glow) {
+    ctx.shadowColor = color;
+    ctx.shadowBlur = 14;
+  }
+
+  ctx.strokeStyle = color;
+  ctx.lineWidth = lineW;
+  ctx.beginPath();
+  for (const [a, b] of connections) {
+    if (!pts[a] || !pts[b]) continue;
+    if (pts[a].v < 0.4 || pts[b].v < 0.4) continue;
+    ctx.moveTo(pts[a].x, pts[a].y);
+    ctx.lineTo(pts[b].x, pts[b].y);
+  }
+  ctx.stroke();
+
+  ctx.shadowBlur = 0;
+}
+
+function drawJoints(landmarks, color, radius, glow) {
+  if (!landmarks?.length) return;
+  const pts = landmarks[0].map(lm => toPx(lm, canvas.width, canvas.height));
+  for (const p of pts) {
+    if (p.v < 0.4) continue;
+    if (glow) {
+      ctx.shadowColor = color;
+      ctx.shadowBlur = 10;
+    }
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, radius, 0, Math.PI * 2);
+    ctx.fillStyle = color;
+    ctx.fill();
+  }
+  ctx.shadowBlur = 0;
+}
+
+function drawFaceMesh(landmarks, glow) {
+  if (!landmarks?.length) return;
+  const pts = landmarks[0].map(lm => toPx(lm, canvas.width, canvas.height));
+  const color = 'rgba(255, 107, 203, 0.55)';
+
+  if (glow) { ctx.shadowColor = '#ff6bcb'; ctx.shadowBlur = 6; }
+  ctx.strokeStyle = color;
+  ctx.lineWidth = 0.8;
+  ctx.beginPath();
+  for (const [a, b] of FACE_MESH_SPARSE) {
+    if (!pts[a] || !pts[b]) continue;
+    ctx.moveTo(pts[a].x, pts[a].y);
+    ctx.lineTo(pts[b].x, pts[b].y);
+  }
+  ctx.stroke();
+
+  // face oval highlight
+  ctx.strokeStyle = 'rgba(255, 107, 203, 0.85)';
+  ctx.lineWidth = 1.5;
+  ctx.beginPath();
+  for (let i = 0; i < FACE_OVAL.length; i++) {
+    const p = pts[FACE_OVAL[i]];
+    if (!p) continue;
+    if (i === 0) ctx.moveTo(p.x, p.y);
+    else ctx.lineTo(p.x, p.y);
+  }
+  ctx.closePath();
+  ctx.stroke();
+  ctx.shadowBlur = 0;
+
+  // subtle face dots
+  for (let i = 0; i < pts.length; i += 8) {
+    ctx.beginPath();
+    ctx.arc(pts[i].x, pts[i].y, 1.2, 0, Math.PI * 2);
+    ctx.fillStyle = 'rgba(255, 150, 220, 0.35)';
+    ctx.fill();
+  }
+}
+
+function drawScene(result) {
+  const w = canvas.width;
+  const h = canvas.height;
+  const glow = opts.glow.checked;
+
+  ctx.clearRect(0, 0, w, h);
+
+  if (opts.video.checked && video.readyState >= 2) {
+    ctx.globalAlpha = 0.55;
+    ctx.filter = 'brightness(0.85) contrast(1.1) saturate(0.9)';
+    ctx.drawImage(video, 0, 0, w, h);
+    ctx.filter = 'none';
+    ctx.globalAlpha = 1;
+  } else {
+    const grad = ctx.createRadialGradient(w * 0.5, h * 0.5, 0, w * 0.5, h * 0.5, w * 0.7);
+    grad.addColorStop(0, 'rgba(0, 30, 120, 0.6)');
+    grad.addColorStop(1, 'rgba(0, 4, 30, 0.95)');
+    ctx.fillStyle = grad;
+    ctx.fillRect(0, 0, w, h);
+  }
+
+  if (opts.pose.checked && result.poseLandmarks) {
+    drawConnections(result.poseLandmarks, POSE_CONNECTIONS, '#5ee7ff', 3.5, glow);
+    drawJoints(result.poseLandmarks, '#ffffff', 4, glow);
+  }
+
+  if (opts.face.checked && result.faceLandmarks) {
+    drawFaceMesh(result.faceLandmarks, glow);
+  }
+
+  if (opts.hands.checked) {
+    if (result.leftHandLandmarks) {
+      drawConnections(result.leftHandLandmarks, HAND_CONNECTIONS, '#7dff9a', 2.5, glow);
+      drawJoints(result.leftHandLandmarks, '#7dff9a', 3, glow);
+    }
+    if (result.rightHandLandmarks) {
+      drawConnections(result.rightHandLandmarks, HAND_CONNECTIONS, '#6eb5ff', 2.5, glow);
+      drawJoints(result.rightHandLandmarks, '#6eb5ff', 3, glow);
+    }
+  }
+
+  // update counts
+  counts.pose.textContent = result.poseLandmarks?.[0]?.length ?? 0;
+  counts.face.textContent = result.faceLandmarks?.[0]?.length ?? 0;
+  counts.lhand.textContent = result.leftHandLandmarks?.[0]?.length ?? 0;
+  counts.rhand.textContent = result.rightHandLandmarks?.[0]?.length ?? 0;
+}
+
+// ---- FPS ----
+let frameCount = 0;
+let fpsLast = performance.now();
+
+function updateFps() {
+  frameCount++;
+  const now = performance.now();
+  if (now - fpsLast >= 1000) {
+    fpsText.textContent = `${frameCount} FPS`;
+    frameCount = 0;
+    fpsLast = now;
+  }
+}
+
+// ---- main loop ----
+function renderLoop() {
+  if (!running || !landmarker) return;
+
+  if (video.videoWidth > 0 && video.videoHeight > 0) {
+    if (canvas.width !== video.videoWidth || canvas.height !== video.videoHeight) {
+      canvas.width = video.videoWidth;
+      canvas.height = video.videoHeight;
+    }
+
+    if (video.currentTime !== lastVideoTime) {
+      lastVideoTime = video.currentTime;
+      const result = landmarker.detectForVideo(video, performance.now());
+      const smoothed = smoothResults(result);
+      drawScene(smoothed);
+      updateFps();
+    }
+  }
+
+  requestAnimationFrame(renderLoop);
+}
+
+const MODEL_URL =
+  'https://storage.googleapis.com/mediapipe-models/holistic_landmarker/holistic_landmarker/float16/1/holistic_landmarker.task';
+
+const LANDMARKER_OPTS = {
+  runningMode: 'VIDEO',
+  minFaceDetectionConfidence: 0.5,
+  minFacePresenceConfidence: 0.5,
+  minPoseDetectionConfidence: 0.5,
+  minPosePresenceConfidence: 0.5,
+  minHandLandmarksConfidence: 0.5,
+};
+
+function withTimeout(promise, ms, label) {
+  return Promise.race([
+    promise,
+    new Promise((_, reject) => {
+      setTimeout(() => reject(new Error(`${label} 超时 (${ms / 1000}s)`)), ms);
+    }),
+  ]);
+}
+
+async function createLandmarker(vision, delegate) {
+  return HolisticLandmarker.createFromOptions(vision, {
+    baseOptions: { modelAssetPath: MODEL_URL, delegate },
+    ...LANDMARKER_OPTS,
+  });
+}
+
+// ---- init ----
+async function initLandmarker() {
+  setStatus('loading', '加载 AI 模型…');
+  idleTitle.textContent = '正在加载 MediaPipe 模型…';
+  startBtn.disabled = true;
+
+  const vision = await FilesetResolver.forVisionTasks(
+    'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.20/wasm'
+  );
+
+  try {
+    idleTitle.textContent = '尝试 GPU 加速…';
+    landmarker = await withTimeout(createLandmarker(vision, 'GPU'), 12000, 'GPU 初始化');
+    document.getElementById('mode-tag').textContent = 'Holistic · GPU';
+  } catch (gpuErr) {
+    console.warn('GPU delegate unavailable, falling back to CPU:', gpuErr);
+    idleTitle.textContent = 'GPU 不可用，切换 CPU 模式…';
+    landmarker = await withTimeout(createLandmarker(vision, 'CPU'), 60000, 'CPU 初始化');
+    document.getElementById('mode-tag').textContent = 'Holistic · CPU';
+  }
+
+  startBtn.disabled = false;
+  idleTitle.textContent = '开启摄像头体验全息感知';
+  setStatus('', '模型就绪');
+}
+
+async function startCamera() {
+  try {
+    startBtn.disabled = true;
+    setStatus('loading', '请求摄像头…');
+
+    const stream = await navigator.mediaDevices.getUserMedia({
+      video: { facingMode: 'user', width: { ideal: 1280 }, height: { ideal: 960 } },
+      audio: false,
+    });
+
+    video.srcObject = stream;
+    await video.play();
+
+    idleScreen.classList.add('hidden');
+    video.style.opacity = opts.video.checked ? '1' : '0';
+    running = true;
+    setStatus('live', '追踪中');
+    renderLoop();
+  } catch (err) {
+    console.error(err);
+    showError(err.name === 'NotAllowedError'
+      ? '摄像头权限被拒绝，请在浏览器设置中允许访问。'
+      : `无法启动摄像头：${err.message}`);
+    setStatus('', '启动失败');
+    startBtn.disabled = false;
+  }
+}
+
+opts.video.addEventListener('change', () => {
+  video.style.opacity = opts.video.checked ? '1' : '0';
+});
+
+startBtn.addEventListener('click', async () => {
+  if (!landmarker) {
+    try { await initLandmarker(); }
+    catch (err) {
+      console.error(err);
+      showError('AI 模型加载失败，请检查网络后刷新页面。');
+      startBtn.disabled = false;
+      return;
+    }
+  }
+  await startCamera();
+});
+
+// preload model on idle
+initLandmarker().catch((err) => {
+  console.warn('Model preload failed, will retry on start:', err);
+  setStatus('', '待启动');
+  startBtn.disabled = false;
+});
+</script>
+</body>
+</html>

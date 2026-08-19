@@ -13,7 +13,7 @@
           "intro": "在 SLB 100 Family Day,我们用手语开启对话。第一步:学会用「你好」向对方打招呼。",
           "task": "请依次做出以下手语,然后点击「我完成了」。",
           "taskIcon": "👋",
-          "completionType": "manual",
+          "completionType": "gesture",
           "gestures": [
             { "word": "你 (You)",  "gestureKey": "point_to_other", "hint": "指向对方 / Point at the other person" },
             { "word": "好 (Good)", "gestureKey": "thumb_up",       "hint": "竖起拇指 👍 / Thumb up" }
@@ -27,7 +27,7 @@
           "intro": "得到帮助时,记得说「谢谢」。SLB 的员工们每天都在用双手创造价值,向他们表达感激吧。",
           "task": "请连续做出以下 4 个手势,然后点击「我完成了」。",
           "taskIcon": "🙏",
-          "completionType": "manual",
+          "completionType": "gesture",
           "gestures": [
             { "word": "谢 (Thank) - Part 1", "gestureKey": "thumb_up",       "hint": "竖起拇指 / Thumb up" },
             { "word": "谢 (Thank) - Part 2", "gestureKey": "half_thumb_up",   "hint": "半握拳,拇指半伸 / Half thumb" },
@@ -43,7 +43,7 @@
           "intro": "在中文里「吃了吗」是一句很亲切的问候,用来关心对方的日常。Family Day 一起吃饭前,试试这句吧!",
           "task": "请按顺序做出以下 5 个手势,然后点击「我完成了」。",
           "taskIcon": "🍱",
-          "completionType": "manual",
+          "completionType": "gesture",
           "gestures": [
             { "word": "你 (You)",         "gestureKey": "point_to_other",       "hint": "指向对方 / Point at the other person" },
             { "word": "吃 (Eat) - I",     "gestureKey": "two_fingers",          "hint": "食指 + 中指 / Index + middle fingers" },
