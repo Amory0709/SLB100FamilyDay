@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import type { LevelGesture } from '@/types/levels';
 import { gestureKeyMatches } from '@/lib/gestures/mapping';
 
-export const HOLD_MS = 1000;
+export const HOLD_MS = 500;
 
 export type GestureStepStatus = 'pending' | 'active' | 'done' | 'wrong';
 
@@ -38,16 +38,21 @@ export function useGestureSequence(
   gestures: LevelGesture[],
   detectedKey: string | null,
   enabled: boolean,
+  tick?: any
 ) {
   const [state, setState] = useState<GestureSequenceState>(() => initState(gestures));
   const holdStartRef = useRef<number | null>(null);
   const currentIndexRef = useRef(0);
+  
+  // Keep track of the last time we saw the correct gesture to allow a grace period
+  const lastCorrectTimeRef = useRef<number>(0);
 
   useEffect(() => {
     const next = initState(gestures);
     setState(next);
     holdStartRef.current = null;
     currentIndexRef.current = 0;
+    lastCorrectTimeRef.current = 0;
   }, [gestures]);
 
   useEffect(() => {
@@ -60,7 +65,10 @@ export function useGestureSequence(
     const now = performance.now();
 
     if (gestureKeyMatches(expectedKey, detectedKey)) {
-      if (holdStartRef.current === null) holdStartRef.current = now;
+      lastCorrectTimeRef.current = now;
+      if (holdStartRef.current === null) {
+        holdStartRef.current = now;
+      }
 
       const elapsed = now - holdStartRef.current;
       const progress = Math.min(1, elapsed / HOLD_MS);
@@ -74,6 +82,7 @@ export function useGestureSequence(
 
       if (elapsed >= HOLD_MS) {
         holdStartRef.current = null;
+        lastCorrectTimeRef.current = 0;
         const nextIndex = idx + 1;
         currentIndexRef.current = nextIndex;
         const done = nextIndex >= gestures.length;
@@ -92,6 +101,11 @@ export function useGestureSequence(
       return;
     }
 
+    // GRACE PERIOD: If we lose the gesture for less than 350ms, keep the progress frozen instead of resetting
+    if (holdStartRef.current !== null && now - lastCorrectTimeRef.current < 350) {
+      return; // Do nothing, just wait out the grace period
+    }
+
     holdStartRef.current = null;
 
     if (detectedKey && !gestureKeyMatches(expectedKey, detectedKey)) {
@@ -103,11 +117,12 @@ export function useGestureSequence(
     }
 
     setState((prev) => ({ ...prev, holdProgress: 0, detectedKey }));
-  }, [detectedKey, enabled, gestures]);
+  }, [detectedKey, enabled, gestures, tick]);
 
   const reset = useCallback(() => {
     holdStartRef.current = null;
     currentIndexRef.current = 0;
+    lastCorrectTimeRef.current = 0;
     setState(initState(gestures));
   }, [gestures]);
 
