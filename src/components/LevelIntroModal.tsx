@@ -1,4 +1,5 @@
 import type { LevelConfig } from '@/types/levels';
+import { useLanguage } from '@/i18n/LanguageContext';
 
 interface LevelIntroModalProps {
   level: LevelConfig;
@@ -8,6 +9,8 @@ interface LevelIntroModalProps {
 }
 
 export function LevelIntroModal({ level, totalLevels, onStart, onSkip }: LevelIntroModalProps) {
+  const { t } = useLanguage();
+
   return (
     <div
       className="level-popup"
@@ -22,10 +25,10 @@ export function LevelIntroModal({ level, totalLevels, onStart, onSkip }: LevelIn
         <p>{level.intro}</p>
         <div className="level-card-actions">
           <button className="level-btn level-btn-primary" type="button" onClick={onStart}>
-            开始任务 →
+            {t('startTask')}
           </button>
           <button className="level-btn level-btn-ghost" type="button" onClick={onSkip}>
-            跳过本关
+            {t('skipLevel')}
           </button>
         </div>
         <p className="small-note">

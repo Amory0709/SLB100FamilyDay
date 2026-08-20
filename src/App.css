@@ -31,6 +31,70 @@
   gap: 18px;
 }
 
+.language-switcher {
+  display: inline-flex;
+  gap: 4px;
+  padding: 3px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.14);
+  align-self: flex-end;
+}
+
+.language-switcher-floating {
+  position: fixed;
+  top: 14px;
+  right: 14px;
+  z-index: 8999;
+}
+
+.language-switcher-floating .language-switcher {
+  background: rgba(255, 255, 255, 0.92);
+  border: 1.5px solid #d8dceb;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+
+.language-switcher-btn {
+  border: 0;
+  border-radius: 999px;
+  padding: 6px 12px;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  background: transparent;
+  color: inherit;
+  opacity: 0.75;
+  transition: background 0.15s ease, opacity 0.15s ease;
+}
+
+.language-switcher-floating .language-switcher-btn {
+  color: #0014c8;
+}
+
+.language-switcher-btn:hover {
+  opacity: 1;
+}
+
+.language-switcher-btn.active {
+  opacity: 1;
+  background: rgba(255, 255, 255, 0.92);
+  color: #0014c8;
+}
+
+.language-switcher-floating .language-switcher-btn.active {
+  background: #0014c8;
+  color: #fff;
+}
+
+.language-switcher-btn:focus-visible {
+  outline: 2px solid #fff;
+  outline-offset: 2px;
+}
+
+.language-switcher-floating .language-switcher-btn:focus-visible {
+  outline-color: #0014c8;
+}
+
 .panel-text {
   width: 100%;
   display: flex;
@@ -99,29 +163,6 @@
   height: auto;
   max-height: 56vh;
   background: transparent;
-}
-
-#gui-toggle,
-#slb-video-close {
-  position: absolute;
-  top: 14px;
-  z-index: 32;
-  width: 32px;
-  height: 32px;
-  border: 0;
-  border-radius: 50%;
-  background: #fff;
-  color: #0014c8;
-  cursor: pointer;
-}
-
-#gui-toggle {
-  left: 14px;
-}
-
-#slb-video-close {
-  right: 14px;
-  font-size: 20px;
 }
 
 .loader {
@@ -422,6 +463,16 @@
   display: flex;
   align-items: center;
   justify-content: center;
+  overflow: hidden;
+}
+
+.task-card-glyph .glyph-emoji-dual {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  line-height: 1;
+  font-size: 34px;
 }
 
 .task-card-glyph svg {
@@ -506,6 +557,18 @@
   border: 1px solid rgba(255, 255, 255, 0.4);
 }
 
+.gesture-recognizer-hidden-video {
+  position: fixed;
+  left: -9999px;
+  top: 0;
+  width: 640px;
+  height: 480px;
+  opacity: 0;
+  pointer-events: none;
+  overflow: hidden;
+  z-index: -1;
+}
+
 .gesture-video,
 .gesture-canvas {
   position: absolute;
@@ -556,30 +619,26 @@
   border-radius: 8px;
   font-size: 14px;
   text-align: center;
-  z-index: 10;
+  z-index: 11;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-width: calc(100% - 24px);
+}
+
+.gesture-error p {
+  margin: 0;
+}
+
+.gesture-retry-btn {
+  align-self: center;
+  color: #fff !important;
+  border-color: rgba(255, 255, 255, 0.65) !important;
 }
 
 .task-auto-done {
   align-self: center;
   pointer-events: none;
-}
-
-.lobby-home {
-  position: fixed;
-  bottom: 18px;
-  left: 18px;
-  z-index: 8998;
-  background: rgba(255, 255, 255, 0.92);
-  border: 1.5px solid #d8dceb;
-  border-radius: 999px;
-  padding: 8px 14px;
-  font-size: 13px;
-  font-weight: 600;
-  color: #0014c8;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  gap: 6px;
 }
 
 .won-icon {

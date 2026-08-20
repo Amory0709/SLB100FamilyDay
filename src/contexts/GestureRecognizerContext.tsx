@@ -8,34 +8,45 @@ import {
   type ReactNode,
   type RefObject,
 } from 'react';
-import { createPortal } from 'react-dom';
 import {
+  FaceLandmarker,
   FilesetResolver,
   GestureRecognizer,
+  PoseLandmarker,
   type GestureRecognizerResult,
   type NormalizedLandmark,
 } from '@mediapipe/tasks-vision';
-import { resolveGestureKey } from '@/lib/gestures/mapping';
+import { detectAllKeys, pickPrimaryKey } from '@/lib/gestures/mapping';
 import { MultiHandLandmarkSmoother, DEFAULT_LANDMARK_SMOOTHER_OPTIONS } from '@/lib/gestures/landmarkSmoothing';
 import { GestureKeyStabilizer } from '@/lib/gestures/gestureStabilizer';
+import { translate } from '@/i18n/translations';
+import { useLanguage } from '@/i18n/LanguageContext';
+import type { Language } from '@/i18n/types';
 
 const WASM_URL = 'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.20/wasm';
 const MODEL_URL =
   'https://storage.googleapis.com/mediapipe-models/gesture_recognizer/gesture_recognizer/float16/1/gesture_recognizer.task';
+const POSE_MODEL_URL =
+  'https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_lite/float16/1/pose_landmarker_lite.task';
+const FACE_MODEL_URL =
+  'https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task';
+const CAMERA_RETRIES = 3;
+const FRAME_MS = 33;
 
 export type GestureRecognizerStatus = 'idle' | 'loading' | 'ready' | 'running' | 'error';
 
 export interface GestureFrame {
   gestureKey: string | null;
+  detectedKeys: string[];
   mpCategory: string | null;
   score: number;
 }
 
 interface GestureRecognizerContextValue {
   videoRef: RefObject<HTMLVideoElement | null>;
-  previewHost: HTMLElement | null;
-  setPreviewHost: (el: HTMLElement | null) => void;
+  canvasRef: RefObject<HTMLCanvasElement | null>;
   setActive: (active: boolean) => void;
+  ensureCamera: () => Promise<void>;
   status: GestureRecognizerStatus;
   bootStatus: GestureRecognizerStatus;
   error: string | null;
@@ -44,54 +55,326 @@ interface GestureRecognizerContextValue {
 
 const GestureRecognizerContext = createContext<GestureRecognizerContextValue | null>(null);
 
-const EMPTY_FRAME: GestureFrame = { gestureKey: null, mpCategory: null, score: 0 };
+const EMPTY_FRAME: GestureFrame = {
+  gestureKey: null,
+  detectedKeys: [],
+  mpCategory: null,
+  score: 0,
+};
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => window.setTimeout(resolve, ms));
+}
+
+function isCameraTimeoutError(err: unknown): boolean {
+  if (!(err instanceof Error)) return false;
+  const msg = err.message.toLowerCase();
+  return msg.includes('timeout') && msg.includes('video');
+}
+
+function mapCameraError(err: unknown, lang: Language): string {
+  if (err instanceof DOMException && err.name === 'NotAllowedError') {
+    return translate(lang, 'cameraDenied');
+  }
+  if (isCameraTimeoutError(err)) {
+    return translate(lang, 'cameraTimeout');
+  }
+  if (err instanceof Error) return err.message;
+  return translate(lang, 'gestureBootFailed');
+}
+
+function waitForVideoElement(
+  getVideo: () => HTMLVideoElement | null,
+  attempts = 120,
+): Promise<HTMLVideoElement> {
+  return new Promise((resolve, reject) => {
+    let remaining = attempts;
+
+    const tryResolve = () => {
+      const video = getVideo();
+      if (video) {
+        resolve(video);
+        return;
+      }
+      remaining -= 1;
+      if (remaining <= 0) {
+        reject(new Error('Video element missing'));
+        return;
+      }
+      requestAnimationFrame(tryResolve);
+    };
+
+    tryResolve();
+  });
+}
+
+function hasVideoFrames(video: HTMLVideoElement): boolean {
+  return video.videoWidth > 0 && video.videoHeight > 0 && video.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA;
+}
+
+function isStreamLive(stream: MediaStream | null): boolean {
+  return stream?.getVideoTracks().some((track) => track.readyState === 'live') ?? false;
+}
+
+function isCameraHealthy(
+  video: HTMLVideoElement | null,
+  stream: MediaStream | null,
+): boolean {
+  if (!video || !stream || !isStreamLive(stream)) return false;
+  if (!hasVideoFrames(video)) return false;
+  return !video.paused && !video.ended;
+}
+
+function waitForVideoFrames(video: HTMLVideoElement, timeoutMs = 10_000): Promise<void> {
+  return new Promise((resolve, reject) => {
+    const deadline = performance.now() + timeoutMs;
+
+    const check = () => {
+      if (hasVideoFrames(video)) {
+        resolve();
+        return;
+      }
+      if (performance.now() >= deadline) {
+        reject(new Error('Timeout starting video source'));
+        return;
+      }
+      requestAnimationFrame(check);
+    };
+
+    check();
+  });
+}
+
+async function acquireCameraStream(stopExisting: () => void): Promise<MediaStream> {
+  if (!navigator.mediaDevices?.getUserMedia) {
+    throw new Error('Camera API unavailable');
+  }
+
+  let lastError: unknown;
+  for (let attempt = 0; attempt < CAMERA_RETRIES; attempt += 1) {
+    try {
+      if (attempt > 0) stopExisting();
+      return await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: 'user', width: { ideal: 640 }, height: { ideal: 480 } },
+        audio: false,
+      });
+    } catch (err) {
+      lastError = err;
+      if (attempt >= CAMERA_RETRIES - 1) break;
+      await sleep(400 * (attempt + 1));
+    }
+  }
+
+  throw lastError;
+}
+
+export function GesturePreviewCanvas() {
+  const { canvasRef } = useGestureRecognizerContext();
+  return <canvas ref={canvasRef} className="gesture-canvas" aria-hidden="true" />;
+}
 
 export function GestureRecognizerProvider({ children }: { children: ReactNode }) {
+  const { language } = useLanguage();
+  const languageRef = useRef(language);
+  languageRef.current = language;
+
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const recognizerRef = useRef<GestureRecognizer | null>(null);
+  const poseLandmarkerRef = useRef<PoseLandmarker | null>(null);
+  const faceLandmarkerRef = useRef<FaceLandmarker | null>(null);
   const rafRef = useRef<number>(0);
   const lastVideoTimeRef = useRef(-1);
+  const lastMpTimestampRef = useRef(0);
+
+  const nextMediaPipeTimestamp = useCallback((): number => {
+    const ts = lastMpTimestampRef.current + FRAME_MS;
+    lastMpTimestampRef.current = ts;
+    return ts;
+  }, []);
   const streamRef = useRef<MediaStream | null>(null);
   const activeRef = useRef(false);
-  const previewHostRef = useRef<HTMLElement | null>(null);
+  const modelReadyRef = useRef(false);
+  const cameraReadyRef = useRef(false);
+  const cameraBootRef = useRef<Promise<void> | null>(null);
+  const bootSessionRef = useRef(0);
   const landmarkSmootherRef = useRef(new MultiHandLandmarkSmoother(DEFAULT_LANDMARK_SMOOTHER_OPTIONS));
   const gestureStabilizerRef = useRef(new GestureKeyStabilizer());
 
-  const [previewHost, setPreviewHostState] = useState<HTMLElement | null>(null);
   const [bootStatus, setBootStatus] = useState<GestureRecognizerStatus>('idle');
   const [runtimeStatus, setRuntimeStatus] = useState<GestureRecognizerStatus>('idle');
   const [error, setError] = useState<string | null>(null);
   const [frame, setFrame] = useState<GestureFrame>(EMPTY_FRAME);
 
+  const syncRuntimeStatus = useCallback(() => {
+    if (!modelReadyRef.current) {
+      setRuntimeStatus('loading');
+      return;
+    }
+    if (cameraBootRef.current && !cameraReadyRef.current) {
+      setRuntimeStatus('loading');
+      return;
+    }
+    if (!cameraReadyRef.current) {
+      setRuntimeStatus(activeRef.current ? 'loading' : 'ready');
+      return;
+    }
+    setRuntimeStatus(activeRef.current ? 'running' : 'ready');
+  }, []);
+
   const resetTrackingState = useCallback(() => {
     landmarkSmootherRef.current.reset();
     gestureStabilizerRef.current.reset();
     lastVideoTimeRef.current = -1;
+    // Keep frameIndexRef monotonic — MediaPipe VIDEO mode rejects timestamp resets.
     setFrame(EMPTY_FRAME);
   }, []);
 
-  const setPreviewHost = useCallback((el: HTMLElement | null) => {
-    previewHostRef.current = el;
-    setPreviewHostState(el);
+  const stopCamera = useCallback(() => {
+    streamRef.current?.getTracks().forEach((track) => track.stop());
+    streamRef.current = null;
+    cameraReadyRef.current = false;
+    cameraBootRef.current = null;
+    const video = videoRef.current;
+    if (video) {
+      video.srcObject = null;
+      video.load();
+    }
   }, []);
+
+  const attachStreamHandlers = useCallback(
+    (stream: MediaStream) => {
+      stream.getVideoTracks().forEach((track) => {
+        track.onended = () => {
+          if (!cameraReadyRef.current) return;
+          stopCamera();
+          setRuntimeStatus(activeRef.current ? 'error' : 'ready');
+          setError(translate(languageRef.current, 'cameraTimeout'));
+        };
+      });
+    },
+    [stopCamera],
+  );
+
+  const startCamera = useCallback(async (): Promise<void> => {
+    const video = videoRef.current;
+    if (cameraReadyRef.current && isCameraHealthy(video, streamRef.current)) {
+      syncRuntimeStatus();
+      return;
+    }
+    if (cameraReadyRef.current) {
+      stopCamera();
+    }
+    if (cameraBootRef.current) return cameraBootRef.current;
+
+    const session = bootSessionRef.current;
+    setRuntimeStatus('loading');
+    setError(null);
+
+    cameraBootRef.current = (async () => {
+      try {
+        if (!modelReadyRef.current || !recognizerRef.current) {
+          throw new Error(translate(languageRef.current, 'gestureBootFailed'));
+        }
+
+        if (streamRef.current && !cameraReadyRef.current) {
+          stopCamera();
+        }
+
+        const stream = await acquireCameraStream(stopCamera);
+        if (session !== bootSessionRef.current) {
+          stream.getTracks().forEach((track) => track.stop());
+          return;
+        }
+
+        const video = await waitForVideoElement(() => videoRef.current);
+        if (session !== bootSessionRef.current) {
+          stream.getTracks().forEach((track) => track.stop());
+          return;
+        }
+
+        streamRef.current = stream;
+        attachStreamHandlers(stream);
+        video.srcObject = stream;
+        video.muted = true;
+        video.playsInline = true;
+        await video.play();
+        await waitForVideoFrames(video);
+
+        if (session !== bootSessionRef.current) {
+          stopCamera();
+          return;
+        }
+
+        cameraReadyRef.current = true;
+        setError(null);
+        syncRuntimeStatus();
+      } catch (err) {
+        if (session !== bootSessionRef.current) return;
+        stopCamera();
+        setError(mapCameraError(err, languageRef.current));
+        setRuntimeStatus('error');
+        throw err;
+      } finally {
+        if (session === bootSessionRef.current) {
+          cameraBootRef.current = null;
+        }
+      }
+    })();
+
+    return cameraBootRef.current;
+  }, [attachStreamHandlers, stopCamera, syncRuntimeStatus]);
+
+  const ensureCamera = useCallback(async () => {
+    const video = videoRef.current;
+    if (cameraReadyRef.current && isCameraHealthy(video, streamRef.current)) {
+      setError(null);
+      syncRuntimeStatus();
+      return;
+    }
+    if (cameraReadyRef.current) {
+      stopCamera();
+    }
+
+    if (cameraBootRef.current) {
+      setRuntimeStatus('loading');
+      try {
+        await cameraBootRef.current;
+        syncRuntimeStatus();
+      } catch {
+        /* error already set in startCamera */
+      }
+      return;
+    }
+
+    setRuntimeStatus('loading');
+    setError(null);
+    try {
+      await startCamera();
+      syncRuntimeStatus();
+    } catch {
+      /* error already set in startCamera */
+    }
+  }, [startCamera, stopCamera, syncRuntimeStatus]);
 
   const setActive = useCallback(
     (active: boolean) => {
       activeRef.current = active;
       resetTrackingState();
-      if (recognizerRef.current && streamRef.current) {
-        setRuntimeStatus(active ? 'running' : 'ready');
-      }
+      syncRuntimeStatus();
     },
-    [resetTrackingState],
+    [resetTrackingState, syncRuntimeStatus],
   );
 
   useEffect(() => {
+    const session = ++bootSessionRef.current;
     let cancelled = false;
 
-    function drawPreview(landmarks: NormalizedLandmark[][], video: HTMLVideoElement) {
-      if (!previewHostRef.current) return;
+    function drawPreview(
+      handLandmarks: NormalizedLandmark[][],
+      poseLandmarks: NormalizedLandmark[][],
+      video: HTMLVideoElement,
+    ) {
       const canvas = canvasRef.current;
       if (!canvas) return;
       const ctx = canvas.getContext('2d');
@@ -105,7 +388,17 @@ export function GestureRecognizerProvider({ children }: { children: ReactNode })
       ctx.clearRect(0, 0, canvas.width, canvas.height);
       ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
 
-      for (const hand of landmarks) {
+      for (const pose of poseLandmarks) {
+        ctx.fillStyle = '#6eb5ff';
+        for (const p of pose) {
+          if ((p.visibility ?? 1) < 0.4) continue;
+          ctx.beginPath();
+          ctx.arc(p.x * canvas.width, p.y * canvas.height, 3, 0, Math.PI * 2);
+          ctx.fill();
+        }
+      }
+
+      for (const hand of handLandmarks) {
         ctx.fillStyle = '#7dff9a';
         for (const p of hand) {
           ctx.beginPath();
@@ -115,14 +408,28 @@ export function GestureRecognizerProvider({ children }: { children: ReactNode })
       }
     }
 
-    function processResult(result: GestureRecognizerResult, smoothedLandmarks: NormalizedLandmark[][]) {
+    function processResult(
+      result: GestureRecognizerResult,
+      smoothedHandLandmarks: NormalizedLandmark[][],
+      poseLandmarks: NormalizedLandmark[][],
+      faceBlendshapes: ReturnType<FaceLandmarker['detectForVideo']>['faceBlendshapes'],
+    ) {
       const top = result.gestures?.[0]?.[0];
       const mpCategory = top?.categoryName && top.categoryName !== 'None' ? top.categoryName : null;
-      const landmarks = smoothedLandmarks[0];
-      const rawGestureKey = resolveGestureKey(mpCategory ?? undefined, landmarks);
-      const gestureKey = gestureStabilizerRef.current.update(rawGestureKey);
+      const handCategories = (result.gestures ?? []).map((g) => g?.[0]?.categoryName);
+
+      const rawKeys = detectAllKeys({
+        handLandmarks: smoothedHandLandmarks,
+        handCategories,
+        poseLandmarks,
+        faceBlendshapes,
+      });
+      const rawPrimary = pickPrimaryKey(rawKeys);
+      const gestureKey = gestureStabilizerRef.current.update(rawPrimary);
+
       setFrame({
         gestureKey,
+        detectedKeys: rawKeys,
         mpCategory,
         score: top?.score ?? 0,
       });
@@ -131,41 +438,69 @@ export function GestureRecognizerProvider({ children }: { children: ReactNode })
     function loop() {
       const video = videoRef.current;
       const recognizer = recognizerRef.current;
-      if (!video || !recognizer || video.readyState < 2) {
-        rafRef.current = requestAnimationFrame(loop);
-        return;
-      }
+      const poseLandmarker = poseLandmarkerRef.current;
+      const faceLandmarker = faceLandmarkerRef.current;
 
-      if (video.currentTime !== lastVideoTimeRef.current) {
+      if (
+        video &&
+        recognizer &&
+        poseLandmarker &&
+        faceLandmarker &&
+        activeRef.current &&
+        cameraReadyRef.current &&
+        hasVideoFrames(video) &&
+        video.currentTime !== lastVideoTimeRef.current
+      ) {
         lastVideoTimeRef.current = video.currentTime;
-        const timestamp = performance.now();
-        const result = recognizer.recognizeForVideo(video, timestamp);
-        const rawLandmarks = result.landmarks ?? [];
+        try {
+          const timestamp = nextMediaPipeTimestamp();
+          const result = recognizer.recognizeForVideo(video, timestamp);
+          const rawLandmarks = result.landmarks ?? [];
 
-        if (activeRef.current) {
-          let smoothedLandmarks = rawLandmarks;
+          let smoothedHandLandmarks = rawLandmarks;
           if (rawLandmarks.length > 0) {
-            smoothedLandmarks = landmarkSmootherRef.current.smooth(rawLandmarks, timestamp);
+            smoothedHandLandmarks = landmarkSmootherRef.current.smooth(rawLandmarks, timestamp);
           } else {
             landmarkSmootherRef.current.reset();
+          }
+
+          const poseResult = poseLandmarker.detectForVideo(video, timestamp);
+          const faceResult = faceLandmarker.detectForVideo(video, timestamp);
+          const poseLandmarks = poseResult.landmarks ?? [];
+
+          if (rawLandmarks.length === 0 && poseLandmarks.length === 0) {
             gestureStabilizerRef.current.reset();
           }
-          processResult(result, smoothedLandmarks);
-          drawPreview(smoothedLandmarks, video);
+
+          processResult(
+            result,
+            smoothedHandLandmarks,
+            poseLandmarks,
+            faceResult.faceBlendshapes,
+          );
+          drawPreview(smoothedHandLandmarks, poseLandmarks, video);
+        } catch (err) {
+          console.warn('Gesture recognition frame failed:', err);
         }
       }
 
       rafRef.current = requestAnimationFrame(loop);
     }
 
-    async function boot() {
+    async function bootModel() {
       setBootStatus('loading');
       setRuntimeStatus('loading');
       setError(null);
 
       try {
         const vision = await FilesetResolver.forVisionTasks(WASM_URL);
+        if (cancelled || session !== bootSessionRef.current) return;
+
+        const visionOptions = { baseOptions: { delegate: 'GPU' as const } };
         let recognizer: GestureRecognizer;
+        let poseLandmarker: PoseLandmarker;
+        let faceLandmarker: FaceLandmarker;
+
         try {
           recognizer = await GestureRecognizer.createFromOptions(vision, {
             baseOptions: { modelAssetPath: MODEL_URL, delegate: 'GPU' },
@@ -175,107 +510,107 @@ export function GestureRecognizerProvider({ children }: { children: ReactNode })
             minHandPresenceConfidence: 0.55,
             minTrackingConfidence: 0.6,
           });
+          poseLandmarker = await PoseLandmarker.createFromOptions(vision, {
+            ...visionOptions,
+            baseOptions: { modelAssetPath: POSE_MODEL_URL, delegate: 'GPU' },
+            runningMode: 'VIDEO',
+            numPoses: 2,
+            minPoseDetectionConfidence: 0.5,
+            minPosePresenceConfidence: 0.5,
+            minTrackingConfidence: 0.5,
+          });
+          faceLandmarker = await FaceLandmarker.createFromOptions(vision, {
+            ...visionOptions,
+            baseOptions: { modelAssetPath: FACE_MODEL_URL, delegate: 'GPU' },
+            runningMode: 'VIDEO',
+            numFaces: 1,
+            outputFaceBlendshapes: true,
+          });
         } catch {
           recognizer = await GestureRecognizer.createFromOptions(vision, {
             baseOptions: { modelAssetPath: MODEL_URL, delegate: 'CPU' },
             runningMode: 'VIDEO',
             numHands: 2,
           });
+          poseLandmarker = await PoseLandmarker.createFromOptions(vision, {
+            baseOptions: { modelAssetPath: POSE_MODEL_URL, delegate: 'CPU' },
+            runningMode: 'VIDEO',
+            numPoses: 2,
+          });
+          faceLandmarker = await FaceLandmarker.createFromOptions(vision, {
+            baseOptions: { modelAssetPath: FACE_MODEL_URL, delegate: 'CPU' },
+            runningMode: 'VIDEO',
+            numFaces: 1,
+            outputFaceBlendshapes: true,
+          });
         }
 
-        if (cancelled) {
+        if (cancelled || session !== bootSessionRef.current) {
           recognizer.close();
+          poseLandmarker.close();
+          faceLandmarker.close();
           return;
         }
 
         recognizerRef.current = recognizer;
-
-        const stream = await navigator.mediaDevices.getUserMedia({
-          video: { facingMode: 'user', width: { ideal: 640 }, height: { ideal: 480 } },
-          audio: false,
-        });
-
-        if (cancelled) {
-          stream.getTracks().forEach((t) => t.stop());
-          recognizer.close();
-          return;
-        }
-
-        streamRef.current = stream;
-        const video = videoRef.current;
-        if (!video) throw new Error('Video element missing');
-
-        video.srcObject = stream;
-        await video.play();
-
+        poseLandmarkerRef.current = poseLandmarker;
+        faceLandmarkerRef.current = faceLandmarker;
+        modelReadyRef.current = true;
         setBootStatus('ready');
-        setRuntimeStatus(activeRef.current ? 'running' : 'ready');
+        setRuntimeStatus('ready');
         rafRef.current = requestAnimationFrame(loop);
       } catch (err) {
-        if (cancelled) return;
+        if (cancelled || session !== bootSessionRef.current) return;
         const msg =
-          err instanceof DOMException && err.name === 'NotAllowedError'
-            ? '摄像头权限被拒绝，请在浏览器设置中允许访问。'
-            : err instanceof Error
-              ? err.message
-              : '手势识别启动失败';
+          err instanceof Error ? err.message : translate(languageRef.current, 'gestureBootFailed');
         setError(msg);
         setBootStatus('error');
         setRuntimeStatus('error');
       }
     }
 
-    void boot();
+    void bootModel();
 
     return () => {
       cancelled = true;
+      bootSessionRef.current += 1;
       cancelAnimationFrame(rafRef.current);
-      streamRef.current?.getTracks().forEach((t) => t.stop());
-      streamRef.current = null;
+      stopCamera();
       recognizerRef.current?.close();
+      poseLandmarkerRef.current?.close();
+      faceLandmarkerRef.current?.close();
       recognizerRef.current = null;
+      poseLandmarkerRef.current = null;
+      faceLandmarkerRef.current = null;
+      modelReadyRef.current = false;
       landmarkSmootherRef.current.reset();
       gestureStabilizerRef.current.reset();
       lastVideoTimeRef.current = -1;
+      lastMpTimestampRef.current = 0;
       setFrame(EMPTY_FRAME);
       setBootStatus('idle');
       setRuntimeStatus('idle');
     };
-  }, []);
+  }, [stopCamera]);
 
   const status = runtimeStatus === 'idle' && bootStatus !== 'idle' ? bootStatus : runtimeStatus;
 
   const value: GestureRecognizerContextValue = {
     videoRef,
-    previewHost,
-    setPreviewHost,
+    canvasRef,
     setActive,
+    ensureCamera,
     status,
     bootStatus,
     error,
     frame,
   };
 
-  const canvasNode = (
-    <canvas ref={canvasRef} className="gesture-canvas" aria-hidden="true" />
-  );
-
   return (
     <GestureRecognizerContext.Provider value={value}>
-      <div
-        className="gesture-recognizer-hidden-video"
-        aria-hidden="true"
-        style={{ position: 'absolute', width: 0, height: 0, overflow: 'hidden' }}
-      >
-        <video ref={videoRef} className="gesture-video" muted playsInline />
+      <div className="gesture-recognizer-hidden-video" aria-hidden="true">
+        <video ref={videoRef} className="gesture-video" muted playsInline autoPlay />
       </div>
-      {previewHost
-        ? createPortal(canvasNode, previewHost)
-        : (
-          <div hidden aria-hidden="true">
-            {canvasNode}
-          </div>
-        )}
       {children}
     </GestureRecognizerContext.Provider>
   );

@@ -36,9 +36,8 @@ function initState(gestures: LevelGesture[]): GestureSequenceState {
 
 export function useGestureSequence(
   gestures: LevelGesture[],
-  detectedKey: string | null,
+  detectedKeys: string[],
   enabled: boolean,
-  tick?: any
 ) {
   const [state, setState] = useState<GestureSequenceState>(() => initState(gestures));
   const holdStartRef = useRef<number | null>(null);
@@ -64,7 +63,7 @@ export function useGestureSequence(
 
     const now = performance.now();
 
-    if (gestureKeyMatches(expectedKey, detectedKey)) {
+    if (gestureKeyMatches(expectedKey, detectedKeys)) {
       lastCorrectTimeRef.current = now;
       if (holdStartRef.current === null) {
         holdStartRef.current = now;
@@ -76,7 +75,7 @@ export function useGestureSequence(
       setState((prev) => ({
         ...prev,
         holdProgress: progress,
-        detectedKey,
+        detectedKey: expectedKey,
         wrongFlash: false,
       }));
 
@@ -108,16 +107,21 @@ export function useGestureSequence(
 
     holdStartRef.current = null;
 
-    if (detectedKey && !gestureKeyMatches(expectedKey, detectedKey)) {
-      setState((prev) => ({ ...prev, holdProgress: 0, detectedKey, wrongFlash: true }));
+    const wrongKey =
+      detectedKeys.length > 0 && !gestureKeyMatches(expectedKey, detectedKeys)
+        ? detectedKeys[0]
+        : null;
+
+    if (wrongKey) {
+      setState((prev) => ({ ...prev, holdProgress: 0, detectedKey: wrongKey, wrongFlash: true }));
       const t = window.setTimeout(() => {
         setState((prev) => ({ ...prev, wrongFlash: false }));
       }, 450);
       return () => window.clearTimeout(t);
     }
 
-    setState((prev) => ({ ...prev, holdProgress: 0, detectedKey }));
-  }, [detectedKey, enabled, gestures, tick]);
+    setState((prev) => ({ ...prev, holdProgress: 0, detectedKey: null }));
+  }, [detectedKeys, enabled, gestures]);
 
   const reset = useCallback(() => {
     holdStartRef.current = null;

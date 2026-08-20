@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useRef } from 'react';
+import { useEffect, useRef } from 'react';
 import {
   useGestureRecognizerContext,
   type GestureFrame,
@@ -8,30 +8,42 @@ import {
 export type { GestureFrame, GestureRecognizerStatus };
 
 export function useGestureRecognizer(active: boolean) {
-  const { setActive, setPreviewHost, videoRef, status, error, frame } = useGestureRecognizerContext();
+  const { setActive, ensureCamera, videoRef, status, error, frame } = useGestureRecognizerContext();
   const previewWrapRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     setActive(active);
+    if (!active) return;
+
+    void ensureCamera().catch(() => {
+      /* error state handled in context */
+    });
+
     return () => setActive(false);
-  }, [active, setActive]);
+  }, [active, setActive, ensureCamera]);
 
-  useLayoutEffect(() => {
-    if (!active) {
-      setPreviewHost(null);
-      return;
-    }
-    const host = previewWrapRef.current;
-    if (!host) return;
-    setPreviewHost(host);
-    return () => setPreviewHost(null);
-  }, [active, setPreviewHost]);
+  // Re-verify camera when task bar remounts after level transitions.
+  useEffect(() => {
+    if (!active) return;
+    const retryId = window.setTimeout(() => {
+      void ensureCamera().catch(() => {
+        /* error state handled in context */
+      });
+    }, 300);
+    return () => window.clearTimeout(retryId);
+  }, [active, ensureCamera]);
 
-  return { videoRef, previewWrapRef, status, error, frame };
+  return { videoRef, previewWrapRef, status, error, frame, ensureCamera };
 }
 
 /** App-level boot status for the loading screen. */
 export function useGestureRecognizerBoot() {
   const { bootStatus, error } = useGestureRecognizerContext();
   return { bootStatus, error };
+}
+
+/** Request camera during a user click handler. */
+export function useGestureCamera() {
+  const { ensureCamera } = useGestureRecognizerContext();
+  return ensureCamera;
 }

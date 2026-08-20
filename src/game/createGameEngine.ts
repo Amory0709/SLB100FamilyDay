@@ -17,7 +17,7 @@ import {
 } from './constants.ts';
 
 export interface GameEngineCallbacks {
-  onLoadProgress?: (receivedBytes: number, statusText: string) => void;
+  onLoadProgress?: (receivedBytes: number) => void;
   onLoadComplete?: () => void;
   onLoadError?: (error: unknown) => void;
 }
@@ -119,11 +119,6 @@ interface BadgeUserData {
   badgeCanvas: HTMLCanvasElement;
   badgeCtx: CanvasRenderingContext2D;
   badgeSize: number;
-}
-
-function fmtBytes(n: number): string {
-  if (n < 1048576) return `${(n / 1024).toFixed(0)} KB`;
-  return `${(n / 1048576).toFixed(1)} MB`;
 }
 
 function vec3Arr(v: THREE.Vector3): [number, number, number] {
@@ -1383,7 +1378,7 @@ export function createGameEngine(
   }
 
   async function loadModel() {
-    callbacks.onLoadProgress?.(0, 'Loading… 0 KB');
+    callbacks.onLoadProgress?.(0);
 
     let blobUrl: string | null = null;
     try {
@@ -1397,7 +1392,7 @@ export function createGameEngine(
         if (done) break;
         chunks.push(value as BlobPart);
         received += value.byteLength;
-        callbacks.onLoadProgress?.(received, `Loading… ${fmtBytes(received)}`);
+        callbacks.onLoadProgress?.(received);
       }
       blobUrl = URL.createObjectURL(new Blob(chunks, { type: 'model/gltf-binary' }));
     } catch (e) {

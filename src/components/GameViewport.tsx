@@ -1,12 +1,16 @@
-interface GameViewportProps {
-  containerRef: React.RefObject<HTMLDivElement | null>;
-}
+import { useLanguage } from '@/i18n/LanguageContext';
 
 export function GameViewport({ containerRef }: GameViewportProps) {
+  const { t } = useLanguage();
+
   return (
     <>
       <div id="viewport" ref={containerRef} />
-      <div id="hint">drag to orbit · scroll to zoom</div>
+      <div id="hint">{t('viewportHint')}</div>
     </>
   );
+}
+
+interface GameViewportProps {
+  containerRef: React.RefObject<HTMLDivElement | null>;
 }

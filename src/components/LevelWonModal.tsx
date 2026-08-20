@@ -1,4 +1,5 @@
 import type { LevelConfig } from '@/types/levels';
+import { useLanguage } from '@/i18n/LanguageContext';
 
 interface LevelWonModalProps {
   level: LevelConfig;
@@ -8,6 +9,7 @@ interface LevelWonModalProps {
 }
 
 export function LevelWonModal({ level, totalLevels, onNext, onReplay }: LevelWonModalProps) {
+  const { t } = useLanguage();
   const isLast = level.id >= totalLevels;
 
   return (
@@ -20,14 +22,16 @@ export function LevelWonModal({ level, totalLevels, onNext, onReplay }: LevelWon
     >
       <div className="level-card level-card-celebrate">
         <div className="won-icon">✓</div>
-        <h2 id="level-won-title">{level.title} — 完成!</h2>
-        <p>{level.reward ?? '恭喜解锁本关!'}</p>
+        <h2 id="level-won-title">
+          {level.title} — {t('levelComplete')}
+        </h2>
+        <p>{level.reward ?? t('defaultReward')}</p>
         <div className="level-card-actions">
           <button className="level-btn level-btn-primary" type="button" onClick={onNext}>
-            {isLast ? '完成全部 ✓' : '下一关 →'}
+            {isLast ? t('allComplete') : t('nextLevel')}
           </button>
           <button className="level-btn level-btn-ghost" type="button" onClick={onReplay}>
-            重玩本关
+            {t('replayLevel')}
           </button>
         </div>
         <p className="small-note">
