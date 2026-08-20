@@ -21,7 +21,6 @@ import {
   MultiHandLandmarkSmoother,
   MultiPoseLandmarkSmoother,
   DEFAULT_LANDMARK_SMOOTHER_OPTIONS,
-  DEFAULT_POSE_LANDMARK_SMOOTHER_OPTIONS,
 } from '@/lib/gestures/landmarkSmoothing';
 import {
   MultiFaceBlendshapeSmoother,
@@ -208,7 +207,7 @@ export function GestureRecognizerProvider({ children }: { children: ReactNode })
   const cameraBootRef = useRef<Promise<void> | null>(null);
   const bootSessionRef = useRef(0);
   const handLandmarkSmootherRef = useRef(new MultiHandLandmarkSmoother(DEFAULT_LANDMARK_SMOOTHER_OPTIONS));
-  const poseLandmarkSmootherRef = useRef(new MultiPoseLandmarkSmoother(DEFAULT_POSE_LANDMARK_SMOOTHER_OPTIONS));
+  const poseLandmarkSmootherRef = useRef(new MultiPoseLandmarkSmoother(DEFAULT_LANDMARK_SMOOTHER_OPTIONS));
   const faceBlendshapeSmootherRef = useRef(
     new MultiFaceBlendshapeSmoother(DEFAULT_FACE_BLENDSHAPE_SMOOTHER_OPTIONS),
   );

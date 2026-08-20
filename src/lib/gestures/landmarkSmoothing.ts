@@ -17,6 +17,27 @@ const POSE_BONES: ReadonlyArray<readonly [number, number]> = [
   [0, 11], [0, 12],
 ];
 
+/** Mean hand bone length — reference for scale-normalized motion thresholds. */
+const HAND_REFERENCE_SCALE = 0.045;
+
+export interface LandmarkSkeleton {
+  bones: ReadonlyArray<readonly [number, number]>;
+  getAnchor: (landmarks: NormalizedLandmark[]) => NormalizedLandmark;
+  minLandmarks: number;
+}
+
+export const HAND_SKELETON: LandmarkSkeleton = {
+  bones: HAND_BONES,
+  getAnchor: (landmarks) => landmarks[0],
+  minLandmarks: 21,
+};
+
+export const POSE_SKELETON: LandmarkSkeleton = {
+  bones: POSE_BONES,
+  getAnchor: hipCenter,
+  minLandmarks: 25,
+};
+
 function cloneLandmarks(landmarks: NormalizedLandmark[]): NormalizedLandmark[] {
   return landmarks.map((p) => ({ ...p }));
 }
@@ -73,25 +94,44 @@ export const DEFAULT_LANDMARK_SMOOTHER_OPTIONS: Required<LandmarkSmootherOptions
   boneLengthSpeedThreshold: 0.012,
 };
 
-export const DEFAULT_POSE_LANDMARK_SMOOTHER_OPTIONS: Required<LandmarkSmootherOptions> = {
-  maxDelta: 0.11,
-  wristAlphaMin: 0.32,
-  wristAlphaMax: 0.75,
-  fingerAlphaMin: 0.22,
-  fingerAlphaMax: 0.65,
-  speedForMaxAlpha: 0.025,
-  deadZone: 0.001,
-  boneLengthBlend: 0.42,
-  boneLengthSpeedThreshold: 0.014,
-};
+/** @deprecated use DEFAULT_LANDMARK_SMOOTHER_OPTIONS — pose now shares hand tuning. */
+export const DEFAULT_POSE_LANDMARK_SMOOTHER_OPTIONS = DEFAULT_LANDMARK_SMOOTHER_OPTIONS;
 
 interface StabilizerState {
   prev: NormalizedLandmark[] | null;
   boneLengths: number[] | null;
 }
 
-function movementFactor(wristSpeed: number, speedForMaxAlpha: number): number {
-  return Math.min(1, wristSpeed / speedForMaxAlpha);
+function movementFactor(anchorSpeed: number, speedForMaxAlpha: number): number {
+  return Math.min(1, anchorSpeed / speedForMaxAlpha);
+}
+
+function measureSkeletonScale(
+  landmarks: NormalizedLandmark[],
+  bones: ReadonlyArray<readonly [number, number]>,
+): number {
+  if (landmarks.length === 0 || bones.length === 0) return HAND_REFERENCE_SCALE;
+
+  let sum = 0;
+  for (const [a, b] of bones) {
+    sum += dist3(landmarks[a], landmarks[b]);
+  }
+  return sum / bones.length;
+}
+
+function scaleMotionOptions(
+  options: Required<LandmarkSmootherOptions>,
+  landmarks: NormalizedLandmark[],
+  bones: ReadonlyArray<readonly [number, number]>,
+): Required<LandmarkSmootherOptions> {
+  const scale = measureSkeletonScale(landmarks, bones) / HAND_REFERENCE_SCALE;
+  return {
+    ...options,
+    maxDelta: options.maxDelta * scale,
+    deadZone: options.deadZone * scale,
+    speedForMaxAlpha: options.speedForMaxAlpha * scale,
+    boneLengthSpeedThreshold: options.boneLengthSpeedThreshold * scale,
+  };
 }
 
 function measureAnchorSpeed(
@@ -105,31 +145,57 @@ function measureAnchorSpeed(
   return Math.hypot(anchor.x - prevAnchor.x, anchor.y - prevAnchor.y);
 }
 
+function clampPointDelta(
+  current: number,
+  previous: number,
+  maxDelta: number,
+): number {
+  const delta = current - previous;
+  if (Math.abs(delta) <= maxDelta) return current;
+  return previous + Math.sign(delta) * maxDelta;
+}
+
 function clampOutliers(
   landmarks: NormalizedLandmark[],
   prev: NormalizedLandmark[] | null,
   anchorSpeed: number,
   options: Required<LandmarkSmootherOptions>,
+  getAnchor: (lm: NormalizedLandmark[]) => NormalizedLandmark,
 ): NormalizedLandmark[] {
   if (!prev || prev.length !== landmarks.length) return landmarks;
 
   const moveFactor = movementFactor(anchorSpeed, options.speedForMaxAlpha);
   const maxDelta = lerp(options.maxDelta * 0.55, options.maxDelta, moveFactor);
-  return landmarks.map((point, i) => {
-    const dx = point.x - prev[i].x;
-    const dy = point.y - prev[i].y;
-    const jump = Math.hypot(dx, dy);
-    if (jump <= maxDelta) return point;
+  const anchor = getAnchor(landmarks);
+  const prevAnchor = getAnchor(prev);
 
-    const scale = maxDelta / jump;
+  const clampedAnchor = {
+    ...anchor,
+    x: clampPointDelta(anchor.x, prevAnchor.x, maxDelta),
+    y: clampPointDelta(anchor.y, prevAnchor.y, maxDelta),
+    z:
+      anchor.z !== undefined && prevAnchor.z !== undefined
+        ? clampPointDelta(anchor.z, prevAnchor.z, maxDelta)
+        : anchor.z,
+  };
+
+  return landmarks.map((point, i) => {
+    const offX = point.x - anchor.x;
+    const offY = point.y - anchor.y;
+    const offZ = (point.z ?? 0) - (anchor.z ?? 0);
+    const prevOffX = prev[i].x - prevAnchor.x;
+    const prevOffY = prev[i].y - prevAnchor.y;
+    const prevOffZ = (prev[i].z ?? 0) - (prevAnchor.z ?? 0);
+
+    const nextOffX = clampPointDelta(offX, prevOffX, maxDelta);
+    const nextOffY = clampPointDelta(offY, prevOffY, maxDelta);
+    const nextOffZ = clampPointDelta(offZ, prevOffZ, maxDelta);
+
     return {
       ...point,
-      x: prev[i].x + dx * scale,
-      y: prev[i].y + dy * scale,
-      z:
-        point.z !== undefined && prev[i].z !== undefined
-          ? prev[i].z + ((point.z ?? 0) - (prev[i].z ?? 0)) * scale
-          : point.z,
+      x: clampedAnchor.x + nextOffX,
+      y: clampedAnchor.y + nextOffY,
+      z: clampedAnchor.z !== undefined ? clampedAnchor.z + nextOffZ : point.z,
     };
   });
 }
@@ -231,32 +297,35 @@ function stabilizeLandmarkSet(
   landmarks: NormalizedLandmark[],
   state: StabilizerState,
   options: Required<LandmarkSmootherOptions>,
-  bones: ReadonlyArray<readonly [number, number]>,
-  getAnchor: (lm: NormalizedLandmark[]) => NormalizedLandmark,
+  skeleton: LandmarkSkeleton,
 ): NormalizedLandmark[] {
-  const anchorSpeed = measureAnchorSpeed(landmarks, state.prev, getAnchor);
+  const motionOptions = scaleMotionOptions(options, landmarks, skeleton.bones);
+  const anchorSpeed = measureAnchorSpeed(landmarks, state.prev, skeleton.getAnchor);
 
-  let next = clampOutliers(landmarks, state.prev, anchorSpeed, options);
-  next = smoothAnchorRelative(next, state.prev, anchorSpeed, options, getAnchor);
+  let next = clampOutliers(landmarks, state.prev, anchorSpeed, motionOptions, skeleton.getAnchor);
+  next = smoothAnchorRelative(next, state.prev, anchorSpeed, motionOptions, skeleton.getAnchor);
 
-  if (anchorSpeed < options.boneLengthSpeedThreshold) {
-    next = enforceBoneLengths(next, state, options, bones);
+  if (anchorSpeed < motionOptions.boneLengthSpeedThreshold) {
+    next = enforceBoneLengths(next, state, motionOptions, skeleton.bones);
   }
 
   state.prev = cloneLandmarks(next);
   return next;
 }
 
-class HandLandmarkStabilizer {
+class LandmarkStabilizer {
+  private readonly skeleton: LandmarkSkeleton;
   private readonly options: Required<LandmarkSmootherOptions>;
   private state: StabilizerState = { prev: null, boneLengths: null };
 
-  constructor(options: Required<LandmarkSmootherOptions>) {
+  constructor(skeleton: LandmarkSkeleton, options: Required<LandmarkSmootherOptions>) {
+    this.skeleton = skeleton;
     this.options = options;
   }
 
   stabilize(landmarks: NormalizedLandmark[], _tMs: number): NormalizedLandmark[] {
-    return stabilizeLandmarkSet(landmarks, this.state, this.options, HAND_BONES, (lm) => lm[0]);
+    if (landmarks.length < this.skeleton.minLandmarks) return landmarks;
+    return stabilizeLandmarkSet(landmarks, this.state, this.options, this.skeleton);
   }
 
   reset(): void {
@@ -265,75 +334,43 @@ class HandLandmarkStabilizer {
   }
 }
 
-class PoseLandmarkStabilizer {
+export class MultiLandmarkSmoother {
+  private readonly skeleton: LandmarkSkeleton;
   private readonly options: Required<LandmarkSmootherOptions>;
-  private state: StabilizerState = { prev: null, boneLengths: null };
+  private stabilizers: LandmarkStabilizer[] = [];
 
-  constructor(options: Required<LandmarkSmootherOptions>) {
-    this.options = options;
-  }
-
-  stabilize(landmarks: NormalizedLandmark[], _tMs: number): NormalizedLandmark[] {
-    if (landmarks.length < 25) return landmarks;
-    return stabilizeLandmarkSet(landmarks, this.state, this.options, POSE_BONES, hipCenter);
-  }
-
-  reset(): void {
-    this.state.prev = null;
-    this.state.boneLengths = null;
-  }
-}
-
-export class MultiHandLandmarkSmoother {
-  private readonly options: Required<LandmarkSmootherOptions>;
-  private hands: HandLandmarkStabilizer[] = [];
-
-  constructor(options: LandmarkSmootherOptions = {}) {
+  constructor(skeleton: LandmarkSkeleton, options: LandmarkSmootherOptions = {}) {
+    this.skeleton = skeleton;
     this.options = { ...DEFAULT_LANDMARK_SMOOTHER_OPTIONS, ...options };
   }
 
   smooth(allLandmarks: NormalizedLandmark[][], tMs: number): NormalizedLandmark[][] {
     const count = allLandmarks.length;
 
-    while (this.hands.length < count) {
-      this.hands.push(new HandLandmarkStabilizer(this.options));
+    while (this.stabilizers.length < count) {
+      this.stabilizers.push(new LandmarkStabilizer(this.skeleton, this.options));
     }
-    if (this.hands.length > count) {
-      this.hands.splice(count).forEach((hand) => hand.reset());
+    if (this.stabilizers.length > count) {
+      this.stabilizers.splice(count).forEach((stabilizer) => stabilizer.reset());
     }
 
-    return allLandmarks.map((landmarks, i) => this.hands[i].stabilize(landmarks, tMs));
+    return allLandmarks.map((landmarks, i) => this.stabilizers[i].stabilize(landmarks, tMs));
   }
 
   reset(): void {
-    this.hands.forEach((hand) => hand.reset());
-    this.hands = [];
+    this.stabilizers.forEach((stabilizer) => stabilizer.reset());
+    this.stabilizers = [];
   }
 }
 
-export class MultiPoseLandmarkSmoother {
-  private readonly options: Required<LandmarkSmootherOptions>;
-  private poses: PoseLandmarkStabilizer[] = [];
-
+export class MultiHandLandmarkSmoother extends MultiLandmarkSmoother {
   constructor(options: LandmarkSmootherOptions = {}) {
-    this.options = { ...DEFAULT_POSE_LANDMARK_SMOOTHER_OPTIONS, ...options };
+    super(HAND_SKELETON, options);
   }
+}
 
-  smooth(allLandmarks: NormalizedLandmark[][], tMs: number): NormalizedLandmark[][] {
-    const count = allLandmarks.length;
-
-    while (this.poses.length < count) {
-      this.poses.push(new PoseLandmarkStabilizer(this.options));
-    }
-    if (this.poses.length > count) {
-      this.poses.splice(count).forEach((pose) => pose.reset());
-    }
-
-    return allLandmarks.map((landmarks, i) => this.poses[i].stabilize(landmarks, tMs));
-  }
-
-  reset(): void {
-    this.poses.forEach((pose) => pose.reset());
-    this.poses = [];
+export class MultiPoseLandmarkSmoother extends MultiLandmarkSmoother {
+  constructor(options: LandmarkSmootherOptions = {}) {
+    super(POSE_SKELETON, options);
   }
 }
