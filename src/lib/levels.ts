@@ -9,8 +9,9 @@ import type {
 } from '@/types/levels';
 import type { Language } from '@/i18n/types';
 import { resolveLocalized } from '@/i18n/resolveLocalized';
+import { assetUrl } from '@/lib/assetUrl';
 
-const LEVELS_URL = '/assets/config/levels.json';
+const LEVELS_URL = assetUrl('assets/config/levels.json');
 
 let cached: LevelsConfigRaw | null = null;
 
