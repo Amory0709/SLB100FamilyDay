@@ -4,6 +4,7 @@ import { viteStaticCopy } from 'vite-plugin-static-copy';
 import path from 'path';
 
 const rootDir = import.meta.dirname;
+const forGitHubPages = process.env.GITHUB_PAGES === 'true';
 
 export default defineConfig({
   plugins: [
@@ -12,7 +13,11 @@ export default defineConfig({
       targets: [{ src: 'assets/**/*', dest: 'assets' }],
     }),
   ],
-  base: process.env.GITHUB_PAGES === 'true' ? '/SLB100FamilyDay/' : '/',
+  base: forGitHubPages ? '/SLB100FamilyDay/docs/' : '/',
+  build: {
+    outDir: forGitHubPages ? 'docs' : 'dist',
+    emptyOutDir: true,
+  },
   resolve: {
     alias: {
       '@': path.resolve(rootDir, 'src'),

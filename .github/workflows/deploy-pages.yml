@@ -7,8 +7,6 @@ on:
 
 permissions:
   contents: write
-  pages: write
-  id-token: write
 
 concurrency:
   group: pages
@@ -33,45 +31,11 @@ jobs:
       - name: Build
         run: npm run build
 
-      - name: Add .nojekyll
-        run: touch dist/.nojekyll
-
-      - name: Deploy to gh-pages branch
-        uses: peaceiris/actions-gh-pages@v4
-        with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          publish_dir: ./dist
-          publish_branch: gh-pages
-
-      - name: Point GitHub Pages at gh-pages branch
-        uses: actions/github-script@v7
-        with:
-          script: |
-            const owner = context.repo.owner;
-            const repo = context.repo.repo;
-            const source = { branch: 'gh-pages', path: '/' };
-
-            async function configureLegacyPages() {
-              try {
-                await github.rest.repos.updateInformationAboutPagesSite({
-                  owner,
-                  repo,
-                  build_type: 'legacy',
-                  source,
-                });
-                core.info('Updated GitHub Pages source to gh-pages branch.');
-                return;
-              } catch (error) {
-                if (error.status !== 404) throw error;
-              }
-
-              await github.rest.repos.createPagesSite({
-                owner,
-                repo,
-                build_type: 'legacy',
-                source,
-              });
-              core.info('Created GitHub Pages site using gh-pages branch.');
-            }
-
-            await configureLegacyPages();
+      - name: Commit built site to docs/
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add docs/
+          git diff --staged --quiet && echo "No docs changes to commit." && exit 0
+          git commit -m "Deploy built site to docs/ [skip ci]"
+          git push

@@ -42,8 +42,8 @@ npm run preview
 
 ## GitHub Pages
 
-Push to `main` runs `.github/workflows/deploy-pages.yml`, builds `dist/`, publishes to **`gh-pages`** branch.
+Push to `main` builds into `docs/` and auto-commits. Root `index.html` redirects GitHub Pages visitors to `docs/`.
 
-**One-time setup:** repo **Settings → Pages → Build and deployment → Source:** Deploy from a branch → branch **`gh-pages`** → folder **`/ (root)`**.
+Works with default Pages setting: **Deploy from branch `main` / `/ (root)`**.
 
 Live URL: `https://amory0709.github.io/SLB100FamilyDay/`

@@ -1,0 +1,228 @@
+{
+  "version": 2,
+  "comment": "SLB 100 Family Day — single & couple mode levels with pose / face / hand detection.",
+  "modes": {
+    "single": {
+      "name": { "en": "Single Mode", "zh": "单人模式" },
+      "intro": {
+        "en": "Welcome to SLB 100 Family Day!\nComplete 4 fun body-pose challenges to unlock the oil platform.\n\nTip: stand back so the camera sees your full upper body.",
+        "zh": "欢迎来到 SLB 100 Family Day!\n完成 4 个趣味身体动作挑战,解锁整个油井平台。\n\n提示:请后退一步,让摄像头看清你的上半身。"
+      },
+      "outro": {
+        "en": "Congratulations! You've completed all 4 levels.\nThank you for participating — Happy Family Day!",
+        "zh": "恭喜! 你已经完成全部 4 个关卡\n谢谢你的参与 — Family Day 快乐!"
+      },
+      "levels": [
+        {
+          "id": 1,
+          "title": { "en": "Lv1 — Smile", "zh": "Lv1 — 微笑 (Smile)" },
+          "intro": {
+            "en": "Family Day is all about joy. Show us your biggest smile!",
+            "zh": "Family Day 充满欢乐。向我们展现你最灿烂的笑容!"
+          },
+          "task": {
+            "en": "Smile at the camera and hold for 2 seconds.",
+            "zh": "对着摄像头微笑,保持 2 秒。"
+          },
+          "taskIcon": "😊",
+          "completionType": "gesture",
+          "gestures": [
+            {
+              "word": { "en": "Smile", "zh": "微笑" },
+              "gestureKey": "smile",
+              "hint": { "en": "Big smile 😊", "zh": "大大微笑 😊" }
+            }
+          ],
+          "reward": { "en": "Smile of the day unlocked!", "zh": "今日最佳笑容解锁!" },
+          "color": "#e0b4ff"
+        },
+        {
+          "id": 2,
+          "title": { "en": "Lv2 — Show Muscle", "zh": "Lv2 — 展示肌肉 (Show Muscle)" },
+          "intro": {
+            "en": "Time to flex! Raise both arms and show your strength — just like celebrating a job well done on the rig.",
+            "zh": "是时候展示力量了! 举起双臂,秀出肌肉 — 就像在井场上庆祝任务完成一样。"
+          },
+          "task": {
+            "en": "Flex both biceps — elbows out, forearms up near shoulder height. Hold for 2 seconds.",
+            "zh": "弯曲手肘展示肱二头肌 — 手肘外展,小臂举至肩部高度。保持 2 秒。"
+          },
+          "taskIcon": "💪",
+          "completionType": "gesture",
+          "gestures": [
+            {
+              "word": { "en": "Muscle pose", "zh": "展示肌肉" },
+              "gestureKey": "muscle_pose",
+              "hint": {
+                "en": "Both arms flexed, elbows out",
+                "zh": "双臂弯曲,手肘外展"
+              }
+            }
+          ],
+          "reward": { "en": "Power pose unlocked!", "zh": "力量姿势解锁!" },
+          "color": "#ffe66d"
+        },
+        {
+          "id": 3,
+          "title": { "en": "Lv3 — Double Thumbs Up", "zh": "Lv3 — 双手点赞 (Double Thumbs Up)" },
+          "intro": {
+            "en": "Give a double thumbs up to celebrate SLB 100 Family Day!",
+            "zh": "用双手竖起大拇指,为 SLB 100 Family Day 点赞!"
+          },
+          "task": {
+            "en": "Show thumbs up with both hands at the same time. Hold for 2 seconds.",
+            "zh": "同时举起双手,竖起大拇指。保持 2 秒。"
+          },
+          "taskIcon": "👍",
+          "completionType": "gesture",
+          "gestures": [
+            {
+              "word": { "en": "Double thumbs up", "zh": "双手点赞" },
+              "gestureKey": "double_thumb_up",
+              "hint": { "en": "Both hands at once", "zh": "双手同时" }
+            }
+          ],
+          "reward": { "en": "Double thumbs up unlocked!", "zh": "双手点赞解锁!" },
+          "color": "#ff8fab"
+        },
+        {
+          "id": 4,
+          "title": { "en": "Lv4 — Safe Lift", "zh": "Lv4 — 安全搬运 (Safe Lift)" },
+          "intro": {
+            "en": "SLB SAFE teaches SIPP body control for lifting. Keep a neutral spine, bend your knees, and hold the load close to your chest — the green zone.",
+            "zh": "SLB SAFE 的 SIPP 身体控制技巧:搬运时保持脊柱中立、弯曲膝盖,并将重物贴近胸前「绿色安全区」。"
+          },
+          "task": {
+            "en": "Squat with knees bent, back straight, and hands close to your chest. Hold the pose for 2 seconds.",
+            "zh": "弯曲膝盖、背部挺直,双手贴近胸前。保持姿势 2 秒。"
+          },
+          "taskIcon": "🏋️",
+          "completionType": "gesture",
+          "gestures": [
+            {
+              "word": { "en": "Safe lift pose", "zh": "安全搬运姿势" },
+              "gestureKey": "hse_lift",
+              "hint": {
+                "en": "Knees bent · straight back · load at chest",
+                "zh": "弯膝 · 直背 · 重物贴胸"
+              }
+            }
+          ],
+          "reward": { "en": "Safe lifting technique unlocked!", "zh": "安全搬运技巧解锁!" },
+          "color": "#7eedd0"
+        }
+      ]
+    },
+    "couple": {
+      "name": { "en": "Couple Mode", "zh": "双人模式" },
+      "intro": {
+        "en": "Welcome to SLB 100 Family Day Couple Mode!\nTeam up with your partner for 4 cooperative body-pose challenges.\n\nTip: both players should be visible in the camera frame.",
+        "zh": "欢迎来到 SLB 100 Family Day 双人模式!\n和伙伴一起完成 4 个合作身体动作挑战。\n\n提示:请确保两位玩家都在摄像头画面中。"
+      },
+      "outro": {
+        "en": "Amazing! You completed all 4 levels together.\nHappy Family Day!",
+        "zh": "太棒了! 你们一起完成了全部 4 个关卡\nFamily Day 快乐!"
+      },
+      "levels": [
+        {
+          "id": 1,
+          "title": { "en": "Lv1 — Double Thumbs Up", "zh": "Lv1 — 双手点赞 (Double Thumbs Up)" },
+          "intro": {
+            "en": "Celebrate together! Both partners show double thumbs up to start strong.",
+            "zh": "一起庆祝! 两位伙伴同时双手点赞,精彩开局。"
+          },
+          "task": {
+            "en": "Both players show thumbs up with both hands. Hold for 2 seconds.",
+            "zh": "两位玩家同时双手竖起大拇指。保持 2 秒。"
+          },
+          "taskIcon": "👍",
+          "completionType": "gesture",
+          "gestures": [
+            {
+              "word": { "en": "Double thumbs up", "zh": "双手点赞" },
+              "gestureKey": "double_thumb_up",
+              "hint": { "en": "Both hands 👍👍 each", "zh": "各举双手 👍👍" }
+            }
+          ],
+          "reward": { "en": "Celebration started!", "zh": "庆祝开始!" },
+          "color": "#e0b4ff"
+        },
+        {
+          "id": 2,
+          "title": { "en": "Lv2 — Infinity Symbol", "zh": "Lv2 — 无限符号 (Infinity Symbol)" },
+          "intro": {
+            "en": "Stand side by side. Touch your inner hands together at the center while your outer arms curve outward — forming the ∞ symbol together.",
+            "zh": "并排站立。内侧手在中心相触,外侧手臂向外弯曲 — 一起组成 ∞ 符号。"
+          },
+          "task": {
+            "en": "Form an infinity symbol with your arms together. Inner wrists meet at center, outer arms spread out. Hold for 2 seconds.",
+            "zh": "用手臂一起组成无限符号 ∞。内侧手腕在中心相触,外侧手臂展开。保持 2 秒。"
+          },
+          "taskIcon": "∞",
+          "completionType": "gesture",
+          "gestures": [
+            {
+              "word": { "en": "Infinity symbol", "zh": "无限符号" },
+              "gestureKey": "infinity_symbol",
+              "hint": {
+                "en": "Inner hands meet · outer arms out",
+                "zh": "内侧手相触 · 外侧手展开"
+              }
+            }
+          ],
+          "reward": { "en": "Infinity bond unlocked!", "zh": "无限默契解锁!" },
+          "color": "#7eedd0"
+        },
+        {
+          "id": 3,
+          "title": { "en": "Lv3 — Hug", "zh": "Lv3 — 拥抱 (Hug)" },
+          "intro": {
+            "en": "Family Day is about connection. Give your partner a warm hug!",
+            "zh": "Family Day 重在联结。给伙伴一个温暖的拥抱!"
+          },
+          "task": {
+            "en": "Stand close and hug each other. Hold for 2 seconds.",
+            "zh": "靠近并拥抱彼此。保持 2 秒。"
+          },
+          "taskIcon": "🤗",
+          "completionType": "gesture",
+          "gestures": [
+            {
+              "word": { "en": "Hug", "zh": "拥抱" },
+              "gestureKey": "hug",
+              "hint": { "en": "Wrap arms around each other", "zh": "双臂环绕彼此" }
+            }
+          ],
+          "reward": { "en": "Warm hug unlocked!", "zh": "温暖拥抱解锁!" },
+          "color": "#ffe66d"
+        },
+        {
+          "id": 4,
+          "title": { "en": "Lv4 — Safe Lift Together", "zh": "Lv4 — 一起安全搬运 (Safe Lift Together)" },
+          "intro": {
+            "en": "Work as a team! Both partners perform the SIPP safe-lift pose together — knees bent, straight backs, hands at chest.",
+            "zh": "团队合作! 两位伙伴同时做出 SIPP 安全搬运姿势 — 弯膝、直背、双手贴胸。"
+          },
+          "task": {
+            "en": "Both players: squat with knees bent, back straight, hands close to chest. Hold together for 2 seconds.",
+            "zh": "两位玩家同时:弯膝、直背、双手贴近胸前。一起保持 2 秒。"
+          },
+          "taskIcon": "👥",
+          "completionType": "gesture",
+          "gestures": [
+            {
+              "word": { "en": "Safe lift (both)", "zh": "双人安全搬运" },
+              "gestureKey": "hse_lift_duo",
+              "hint": {
+                "en": "Both in safe lift pose",
+                "zh": "两人同时安全搬运姿势"
+              }
+            }
+          ],
+          "reward": { "en": "Team lifting unlocked!", "zh": "团队搬运解锁!" },
+          "color": "#ff8fab"
+        }
+      ]
+    }
+  }
+}
