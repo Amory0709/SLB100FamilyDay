@@ -10,6 +10,7 @@ import {
   LEVEL_LABELS,
   LEVEL_ROUTE,
   LEVEL_ZONE_WEIGHT,
+  MODEL_POSITION_OFFSET,
   P1_CAM,
   P1_TGT,
   PIN_KEY,
@@ -1349,6 +1350,7 @@ export function createGameEngine(
   function applyModel(gltf: { scene: THREE.Group }) {
     model = gltf.scene;
     model.rotation.y = 0;
+    model.position.set(...MODEL_POSITION_OFFSET);
     model.traverse((o) => {
       if (o instanceof THREE.Mesh) {
         o.castShadow = true;

@@ -2,6 +2,9 @@ import { assetUrl } from '@/lib/assetUrl';
 
 export const GLB_MODEL_PATH = assetUrl('assets/models/slb-style-oil-rig.glb');
 
+/** Nudge loaded GLB in scene space (x, y, z). */
+export const MODEL_POSITION_OFFSET: [number, number, number] = [0, -30, 0];
+
 export const LEVEL_DEV_KEY = 'slb100_level_dev_v1';
 export const PIN_KEY = 'slb100_pin_views_v1';
 
