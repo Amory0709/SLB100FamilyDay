@@ -5,6 +5,15 @@ export const GLB_MODEL_PATH = assetUrl('assets/models/slb-style-oil-rig.glb');
 /** Nudge loaded GLB in scene space (x, y, z). */
 export const MODEL_POSITION_OFFSET: [number, number, number] = [0, -30, 0];
 
+/** Apply model translation to a world-space point tuned before the offset existed. */
+export function applyModelOffset(point: [number, number, number]): [number, number, number] {
+  return [
+    point[0] + MODEL_POSITION_OFFSET[0],
+    point[1] + MODEL_POSITION_OFFSET[1],
+    point[2] + MODEL_POSITION_OFFSET[2],
+  ];
+}
+
 export const LEVEL_DEV_KEY = 'slb100_level_dev_v1';
 export const PIN_KEY = 'slb100_pin_views_v1';
 

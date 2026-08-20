@@ -75,3 +75,10 @@ export function getLevelConfig(
   const modeCfg = getModeConfig(config, mode);
   return modeCfg?.levels.find((l) => l.id === levelId) ?? null;
 }
+
+export function getModeLevelColors(levels: LevelConfig[]): string[] {
+  const colors = levels
+    .map((level) => level.color)
+    .filter((color): color is string => Boolean(color));
+  return colors.length > 0 ? [...new Set(colors)] : ['#0014c8'];
+}

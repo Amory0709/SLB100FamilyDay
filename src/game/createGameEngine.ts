@@ -14,6 +14,7 @@ import {
   P1_CAM,
   P1_TGT,
   PIN_KEY,
+  applyModelOffset,
   isDevMode,
 } from './constants.ts';
 
@@ -363,7 +364,7 @@ export function createGameEngine(
     pinList = [];
   }
   if (pinList.length === 0) {
-    pinList.push({ label: 'P1', pos: [...P1_CAM], tgt: [...P1_TGT] });
+    pinList.push({ label: 'P1', pos: applyModelOffset(P1_CAM), tgt: applyModelOffset(P1_TGT) });
   }
 
   function savePinList() {
@@ -790,6 +791,7 @@ export function createGameEngine(
     if (!model || !posArr) return null;
 
     const anchor = new THREE.Vector3(posArr[0], posArr[1], posArr[2]);
+    model.localToWorld(anchor);
     const box = new THREE.Box3().setFromObject(model);
     const sphere = box.getBoundingSphere(new THREE.Sphere());
     const center = sphere.center;
@@ -1369,8 +1371,10 @@ export function createGameEngine(
     rebuildLevelMarkers();
     indexModelMeshZones();
 
-    camera.position.set(P1_CAM[0], P1_CAM[1], P1_CAM[2]);
-    controls.target.set(P1_TGT[0], P1_TGT[1], P1_TGT[2]);
+    const [p1CamX, p1CamY, p1CamZ] = applyModelOffset(P1_CAM);
+    const [p1TgtX, p1TgtY, p1TgtZ] = applyModelOffset(P1_TGT);
+    camera.position.set(p1CamX, p1CamY, p1CamZ);
+    controls.target.set(p1TgtX, p1TgtY, p1TgtZ);
     controls.update();
     camera.updateProjectionMatrix();
 

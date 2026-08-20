@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { GameMode, LevelFlowState } from '@/types/levels';
-import { getLevelConfig, getModeConfig, loadLevelsConfig, resolveLevelsConfig } from '@/lib/levels';
+import { getLevelConfig, getModeConfig, getModeLevelColors, loadLevelsConfig, resolveLevelsConfig } from '@/lib/levels';
 import { createGameEngine, type GameEngine } from '@/game/createGameEngine';
 import { LoaderOverlay } from '@/components/LoaderOverlay';
 import { useGestureRecognizerBoot, useGestureCamera } from '@/hooks/useGestureRecognizer';
@@ -148,6 +148,11 @@ export default function App() {
 
   const totalLevels = modeConfig?.levels.length ?? 0;
 
+  const celebrationColors = useMemo(
+    () => getModeLevelColors(modeConfig?.levels ?? []),
+    [modeConfig],
+  );
+
   const handleSelectMode = (mode: GameMode) => {
     if (!levelsConfig) {
       alert(t('failedLoadLevels'));
@@ -271,6 +276,7 @@ export default function App() {
       {flowState === 'outro' && modeConfig && (
         <LevelOutroModal
           text={modeConfig.outro}
+          colors={celebrationColors}
           onRestart={handleOutroRestart}
           onLobby={handleReturnLobby}
         />

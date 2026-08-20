@@ -8,6 +8,15 @@ const HAND_BONES: ReadonlyArray<readonly [number, number]> = [
   [0, 17], [17, 18], [18, 19], [19, 20],
 ];
 
+const POSE_BONES: ReadonlyArray<readonly [number, number]> = [
+  [11, 12], [11, 13], [13, 15], [15, 17], [15, 19], [15, 21],
+  [12, 14], [14, 16], [16, 18], [16, 20], [16, 22],
+  [11, 23], [12, 24], [23, 24],
+  [23, 25], [25, 27], [27, 29], [27, 31],
+  [24, 26], [26, 28], [28, 30], [28, 32],
+  [0, 11], [0, 12],
+];
+
 function cloneLandmarks(landmarks: NormalizedLandmark[]): NormalizedLandmark[] {
   return landmarks.map((p) => ({ ...p }));
 }
@@ -20,24 +29,34 @@ function lerp(a: number, b: number, t: number): number {
   return a + (b - a) * t;
 }
 
+function hipCenter(landmarks: NormalizedLandmark[]): NormalizedLandmark {
+  const lh = landmarks[23];
+  const rh = landmarks[24];
+  return {
+    x: (lh.x + rh.x) / 2,
+    y: (lh.y + rh.y) / 2,
+    z: lh.z !== undefined && rh.z !== undefined ? (lh.z + rh.z) / 2 : undefined,
+  };
+}
+
 export interface LandmarkSmootherOptions {
   /** Max normalized jump per frame before clamping. Default 0.09 */
   maxDelta?: number;
-  /** Wrist alpha when hand is still. Default 0.3 */
+  /** Anchor alpha when still. Default 0.3 */
   wristAlphaMin?: number;
-  /** Wrist alpha when hand is moving fast. Default 0.82 */
+  /** Anchor alpha when moving fast. Default 0.82 */
   wristAlphaMax?: number;
-  /** Finger alpha when hand is still. Default 0.2 */
+  /** Limb alpha when still. Default 0.2 */
   fingerAlphaMin?: number;
-  /** Finger alpha when hand is moving fast. Default 0.72 */
+  /** Limb alpha when moving fast. Default 0.72 */
   fingerAlphaMax?: number;
-  /** Wrist speed (normalized/frame) that reaches max alpha. Default 0.022 */
+  /** Anchor speed (normalized/frame) that reaches max alpha. Default 0.022 */
   speedForMaxAlpha?: number;
-  /** Dead zone for finger offsets while still. Default 0.0007 */
+  /** Dead zone for offsets while still. Default 0.0007 */
   deadZone?: number;
-  /** Bone length blend while hand is still. Default 0.4 */
+  /** Bone length blend while still. Default 0.4 */
   boneLengthBlend?: number;
-  /** Apply bone constraints only below this wrist speed. Default 0.012 */
+  /** Apply bone constraints only below this anchor speed. Default 0.012 */
   boneLengthSpeedThreshold?: number;
 }
 
@@ -53,162 +72,214 @@ export const DEFAULT_LANDMARK_SMOOTHER_OPTIONS: Required<LandmarkSmootherOptions
   boneLengthSpeedThreshold: 0.012,
 };
 
-interface HandStabilizerState {
+export const DEFAULT_POSE_LANDMARK_SMOOTHER_OPTIONS: Required<LandmarkSmootherOptions> = {
+  maxDelta: 0.11,
+  wristAlphaMin: 0.32,
+  wristAlphaMax: 0.75,
+  fingerAlphaMin: 0.22,
+  fingerAlphaMax: 0.65,
+  speedForMaxAlpha: 0.025,
+  deadZone: 0.001,
+  boneLengthBlend: 0.42,
+  boneLengthSpeedThreshold: 0.014,
+};
+
+interface StabilizerState {
   prev: NormalizedLandmark[] | null;
   boneLengths: number[] | null;
 }
 
+function movementFactor(wristSpeed: number, speedForMaxAlpha: number): number {
+  return Math.min(1, wristSpeed / speedForMaxAlpha);
+}
+
+function measureAnchorSpeed(
+  landmarks: NormalizedLandmark[],
+  prev: NormalizedLandmark[] | null,
+  getAnchor: (lm: NormalizedLandmark[]) => NormalizedLandmark,
+): number {
+  if (!prev || prev.length !== landmarks.length) return 0;
+  const anchor = getAnchor(landmarks);
+  const prevAnchor = getAnchor(prev);
+  return Math.hypot(anchor.x - prevAnchor.x, anchor.y - prevAnchor.y);
+}
+
+function clampOutliers(
+  landmarks: NormalizedLandmark[],
+  prev: NormalizedLandmark[] | null,
+  anchorSpeed: number,
+  options: Required<LandmarkSmootherOptions>,
+): NormalizedLandmark[] {
+  if (!prev || prev.length !== landmarks.length) return landmarks;
+
+  const moveFactor = movementFactor(anchorSpeed, options.speedForMaxAlpha);
+  const maxDelta = lerp(options.maxDelta * 0.55, options.maxDelta, moveFactor);
+  return landmarks.map((point, i) => {
+    const dx = point.x - prev[i].x;
+    const dy = point.y - prev[i].y;
+    const jump = Math.hypot(dx, dy);
+    if (jump <= maxDelta) return point;
+
+    const scale = maxDelta / jump;
+    return {
+      ...point,
+      x: prev[i].x + dx * scale,
+      y: prev[i].y + dy * scale,
+      z:
+        point.z !== undefined && prev[i].z !== undefined
+          ? prev[i].z + ((point.z ?? 0) - (prev[i].z ?? 0)) * scale
+          : point.z,
+    };
+  });
+}
+
+function smoothAnchorRelative(
+  landmarks: NormalizedLandmark[],
+  prev: NormalizedLandmark[] | null,
+  anchorSpeed: number,
+  options: Required<LandmarkSmootherOptions>,
+  getAnchor: (lm: NormalizedLandmark[]) => NormalizedLandmark,
+): NormalizedLandmark[] {
+  if (!prev || prev.length !== landmarks.length) return landmarks;
+
+  const moveFactor = movementFactor(anchorSpeed, options.speedForMaxAlpha);
+  const anchorAlpha = lerp(options.wristAlphaMin, options.wristAlphaMax, moveFactor);
+  const limbAlpha = lerp(options.fingerAlphaMin, options.fingerAlphaMax, moveFactor);
+  const applyDeadZone = moveFactor < 0.25;
+  const { deadZone } = options;
+  const anchor = getAnchor(landmarks);
+  const prevAnchor = getAnchor(prev);
+
+  const smoothAnchor = {
+    x: lerp(prevAnchor.x, anchor.x, anchorAlpha),
+    y: lerp(prevAnchor.y, anchor.y, anchorAlpha),
+    z:
+      anchor.z !== undefined && prevAnchor.z !== undefined
+        ? lerp(prevAnchor.z, anchor.z, anchorAlpha)
+        : anchor.z,
+  };
+
+  return landmarks.map((point, i) => {
+    const offX = point.x - anchor.x;
+    const offY = point.y - anchor.y;
+    const offZ = (point.z ?? 0) - (anchor.z ?? 0);
+
+    const prevOffX = prev[i].x - prevAnchor.x;
+    const prevOffY = prev[i].y - prevAnchor.y;
+    const prevOffZ = (prev[i].z ?? 0) - (prevAnchor.z ?? 0);
+
+    let nextOffX = lerp(prevOffX, offX, limbAlpha);
+    let nextOffY = lerp(prevOffY, offY, limbAlpha);
+    let nextOffZ = lerp(prevOffZ, offZ, limbAlpha);
+
+    if (applyDeadZone && Math.abs(nextOffX - prevOffX) < deadZone) nextOffX = prevOffX;
+    if (applyDeadZone && Math.abs(nextOffY - prevOffY) < deadZone) nextOffY = prevOffY;
+    if (applyDeadZone && Math.abs(nextOffZ - prevOffZ) < deadZone) nextOffZ = prevOffZ;
+
+    return {
+      ...point,
+      x: smoothAnchor.x + nextOffX,
+      y: smoothAnchor.y + nextOffY,
+      z: smoothAnchor.z !== undefined ? smoothAnchor.z + nextOffZ : point.z,
+    };
+  });
+}
+
+function enforceBoneLengths(
+  landmarks: NormalizedLandmark[],
+  state: StabilizerState,
+  options: Required<LandmarkSmootherOptions>,
+  bones: ReadonlyArray<readonly [number, number]>,
+): NormalizedLandmark[] {
+  const result = cloneLandmarks(landmarks);
+  const measured = bones.map(([a, b]) => dist3(result[a], result[b]));
+  const { boneLengthBlend } = options;
+
+  const targets = state.boneLengths
+    ? measured.map((len, i) => lerp(len, state.boneLengths![i], boneLengthBlend))
+    : measured;
+
+  for (let i = 0; i < bones.length; i++) {
+    const [parent, child] = bones[i];
+    const parentPoint = result[parent];
+    const childPoint = result[child];
+    const currentLen = dist3(parentPoint, childPoint);
+    const targetLen = targets[i];
+    if (currentLen < 1e-6) continue;
+
+    const scale = targetLen / currentLen;
+    result[child] = {
+      ...childPoint,
+      x: parentPoint.x + (childPoint.x - parentPoint.x) * scale,
+      y: parentPoint.y + (childPoint.y - parentPoint.y) * scale,
+      z:
+        childPoint.z !== undefined
+          ? parentPoint.z! + ((childPoint.z ?? 0) - (parentPoint.z ?? 0)) * scale
+          : childPoint.z,
+    };
+  }
+
+  state.boneLengths = state.boneLengths
+    ? targets.map((_, i) => lerp(state.boneLengths![i], measured[i], 0.12))
+    : measured;
+
+  return result;
+}
+
+function stabilizeLandmarkSet(
+  landmarks: NormalizedLandmark[],
+  state: StabilizerState,
+  options: Required<LandmarkSmootherOptions>,
+  bones: ReadonlyArray<readonly [number, number]>,
+  getAnchor: (lm: NormalizedLandmark[]) => NormalizedLandmark,
+): NormalizedLandmark[] {
+  const anchorSpeed = measureAnchorSpeed(landmarks, state.prev, getAnchor);
+
+  let next = clampOutliers(landmarks, state.prev, anchorSpeed, options);
+  next = smoothAnchorRelative(next, state.prev, anchorSpeed, options, getAnchor);
+
+  if (anchorSpeed < options.boneLengthSpeedThreshold) {
+    next = enforceBoneLengths(next, state, options, bones);
+  }
+
+  state.prev = cloneLandmarks(next);
+  return next;
+}
+
 class HandLandmarkStabilizer {
   private readonly options: Required<LandmarkSmootherOptions>;
-  private state: HandStabilizerState = {
-    prev: null,
-    boneLengths: null,
-  };
+  private state: StabilizerState = { prev: null, boneLengths: null };
 
   constructor(options: Required<LandmarkSmootherOptions>) {
     this.options = options;
   }
 
   stabilize(landmarks: NormalizedLandmark[], _tMs: number): NormalizedLandmark[] {
-    let next = cloneLandmarks(landmarks);
-    const wristSpeed = this.measureWristSpeed(landmarks);
-
-    next = this.clampOutliers(next, wristSpeed);
-    next = this.smoothWristAnchored(next, wristSpeed);
-
-    if (wristSpeed < this.options.boneLengthSpeedThreshold) {
-      next = this.enforceBoneLengths(next);
-    }
-
-    this.state.prev = cloneLandmarks(next);
-    return next;
+    return stabilizeLandmarkSet(landmarks, this.state, this.options, HAND_BONES, (lm) => lm[0]);
   }
 
   reset(): void {
     this.state.prev = null;
     this.state.boneLengths = null;
   }
+}
 
-  private measureWristSpeed(landmarks: NormalizedLandmark[]): number {
-    const prev = this.state.prev;
-    if (!prev || prev.length !== landmarks.length) return 0;
-    return Math.hypot(landmarks[0].x - prev[0].x, landmarks[0].y - prev[0].y);
+class PoseLandmarkStabilizer {
+  private readonly options: Required<LandmarkSmootherOptions>;
+  private state: StabilizerState = { prev: null, boneLengths: null };
+
+  constructor(options: Required<LandmarkSmootherOptions>) {
+    this.options = options;
   }
 
-  private movementFactor(wristSpeed: number): number {
-    return Math.min(1, wristSpeed / this.options.speedForMaxAlpha);
+  stabilize(landmarks: NormalizedLandmark[], _tMs: number): NormalizedLandmark[] {
+    if (landmarks.length < 25) return landmarks;
+    return stabilizeLandmarkSet(landmarks, this.state, this.options, POSE_BONES, hipCenter);
   }
 
-  private clampOutliers(landmarks: NormalizedLandmark[], wristSpeed: number): NormalizedLandmark[] {
-    const prev = this.state.prev;
-    if (!prev || prev.length !== landmarks.length) return landmarks;
-
-    const moveFactor = this.movementFactor(wristSpeed);
-    const maxDelta = lerp(this.options.maxDelta * 0.55, this.options.maxDelta, moveFactor);
-    return landmarks.map((point, i) => {
-      const dx = point.x - prev[i].x;
-      const dy = point.y - prev[i].y;
-      const jump = Math.hypot(dx, dy);
-      if (jump <= maxDelta) return point;
-
-      const scale = maxDelta / jump;
-      return {
-        ...point,
-        x: prev[i].x + dx * scale,
-        y: prev[i].y + dy * scale,
-        z:
-          point.z !== undefined && prev[i].z !== undefined
-            ? prev[i].z + ((point.z ?? 0) - (prev[i].z ?? 0)) * scale
-            : point.z,
-      };
-    });
-  }
-
-  private smoothWristAnchored(landmarks: NormalizedLandmark[], wristSpeed: number): NormalizedLandmark[] {
-    const prev = this.state.prev;
-    if (!prev || prev.length !== landmarks.length) return landmarks;
-
-    const moveFactor = this.movementFactor(wristSpeed);
-    const wristAlpha = lerp(this.options.wristAlphaMin, this.options.wristAlphaMax, moveFactor);
-    const fingerAlpha = lerp(this.options.fingerAlphaMin, this.options.fingerAlphaMax, moveFactor);
-    const applyDeadZone = moveFactor < 0.25;
-    const { deadZone } = this.options;
-    const wrist = landmarks[0];
-    const prevWrist = prev[0];
-
-    const smoothWrist = {
-      x: lerp(prevWrist.x, wrist.x, wristAlpha),
-      y: lerp(prevWrist.y, wrist.y, wristAlpha),
-      z:
-        wrist.z !== undefined && prevWrist.z !== undefined
-          ? lerp(prevWrist.z, wrist.z, wristAlpha)
-          : wrist.z,
-    };
-
-    return landmarks.map((point, i) => {
-      if (i === 0) {
-        return { ...point, ...smoothWrist };
-      }
-
-      const offX = point.x - wrist.x;
-      const offY = point.y - wrist.y;
-      const offZ = (point.z ?? 0) - (wrist.z ?? 0);
-
-      const prevOffX = prev[i].x - prevWrist.x;
-      const prevOffY = prev[i].y - prevWrist.y;
-      const prevOffZ = (prev[i].z ?? 0) - (prevWrist.z ?? 0);
-
-      let nextOffX = lerp(prevOffX, offX, fingerAlpha);
-      let nextOffY = lerp(prevOffY, offY, fingerAlpha);
-      let nextOffZ = lerp(prevOffZ, offZ, fingerAlpha);
-
-      if (applyDeadZone && Math.abs(nextOffX - prevOffX) < deadZone) nextOffX = prevOffX;
-      if (applyDeadZone && Math.abs(nextOffY - prevOffY) < deadZone) nextOffY = prevOffY;
-      if (applyDeadZone && Math.abs(nextOffZ - prevOffZ) < deadZone) nextOffZ = prevOffZ;
-
-      return {
-        ...point,
-        x: smoothWrist.x + nextOffX,
-        y: smoothWrist.y + nextOffY,
-        z: smoothWrist.z !== undefined ? smoothWrist.z + nextOffZ : point.z,
-      };
-    });
-  }
-
-  private enforceBoneLengths(landmarks: NormalizedLandmark[]): NormalizedLandmark[] {
-    const result = cloneLandmarks(landmarks);
-    const measured = HAND_BONES.map(([a, b]) => dist3(result[a], result[b]));
-    const { boneLengthBlend } = this.options;
-
-    const targets = this.state.boneLengths
-      ? measured.map((len, i) => lerp(len, this.state.boneLengths![i], boneLengthBlend))
-      : measured;
-
-    for (let i = 0; i < HAND_BONES.length; i++) {
-      const [parent, child] = HAND_BONES[i];
-      const parentPoint = result[parent];
-      const childPoint = result[child];
-      const currentLen = dist3(parentPoint, childPoint);
-      const targetLen = targets[i];
-      if (currentLen < 1e-6) continue;
-
-      const scale = targetLen / currentLen;
-      result[child] = {
-        ...childPoint,
-        x: parentPoint.x + (childPoint.x - parentPoint.x) * scale,
-        y: parentPoint.y + (childPoint.y - parentPoint.y) * scale,
-        z:
-          childPoint.z !== undefined
-            ? parentPoint.z! + ((childPoint.z ?? 0) - (parentPoint.z ?? 0)) * scale
-            : childPoint.z,
-      };
-    }
-
-    this.state.boneLengths = this.state.boneLengths
-      ? targets.map((_, i) => lerp(this.state.boneLengths![i], measured[i], 0.12))
-      : measured;
-
-    return result;
+  reset(): void {
+    this.state.prev = null;
+    this.state.boneLengths = null;
   }
 }
 
@@ -236,5 +307,32 @@ export class MultiHandLandmarkSmoother {
   reset(): void {
     this.hands.forEach((hand) => hand.reset());
     this.hands = [];
+  }
+}
+
+export class MultiPoseLandmarkSmoother {
+  private readonly options: Required<LandmarkSmootherOptions>;
+  private poses: PoseLandmarkStabilizer[] = [];
+
+  constructor(options: LandmarkSmootherOptions = {}) {
+    this.options = { ...DEFAULT_POSE_LANDMARK_SMOOTHER_OPTIONS, ...options };
+  }
+
+  smooth(allLandmarks: NormalizedLandmark[][], tMs: number): NormalizedLandmark[][] {
+    const count = allLandmarks.length;
+
+    while (this.poses.length < count) {
+      this.poses.push(new PoseLandmarkStabilizer(this.options));
+    }
+    if (this.poses.length > count) {
+      this.poses.splice(count).forEach((pose) => pose.reset());
+    }
+
+    return allLandmarks.map((landmarks, i) => this.poses[i].stabilize(landmarks, tMs));
+  }
+
+  reset(): void {
+    this.poses.forEach((pose) => pose.reset());
+    this.poses = [];
   }
 }

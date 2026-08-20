@@ -17,7 +17,12 @@ import {
   type NormalizedLandmark,
 } from '@mediapipe/tasks-vision';
 import { detectAllKeys, pickPrimaryKey } from '@/lib/gestures/mapping';
-import { MultiHandLandmarkSmoother, DEFAULT_LANDMARK_SMOOTHER_OPTIONS } from '@/lib/gestures/landmarkSmoothing';
+import {
+  MultiHandLandmarkSmoother,
+  MultiPoseLandmarkSmoother,
+  DEFAULT_LANDMARK_SMOOTHER_OPTIONS,
+  DEFAULT_POSE_LANDMARK_SMOOTHER_OPTIONS,
+} from '@/lib/gestures/landmarkSmoothing';
 import { GestureKeyStabilizer } from '@/lib/gestures/gestureStabilizer';
 import { translate } from '@/i18n/translations';
 import { useLanguage } from '@/i18n/LanguageContext';
@@ -198,7 +203,8 @@ export function GestureRecognizerProvider({ children }: { children: ReactNode })
   const cameraReadyRef = useRef(false);
   const cameraBootRef = useRef<Promise<void> | null>(null);
   const bootSessionRef = useRef(0);
-  const landmarkSmootherRef = useRef(new MultiHandLandmarkSmoother(DEFAULT_LANDMARK_SMOOTHER_OPTIONS));
+  const handLandmarkSmootherRef = useRef(new MultiHandLandmarkSmoother(DEFAULT_LANDMARK_SMOOTHER_OPTIONS));
+  const poseLandmarkSmootherRef = useRef(new MultiPoseLandmarkSmoother(DEFAULT_POSE_LANDMARK_SMOOTHER_OPTIONS));
   const gestureStabilizerRef = useRef(new GestureKeyStabilizer());
 
   const [bootStatus, setBootStatus] = useState<GestureRecognizerStatus>('idle');
@@ -223,7 +229,8 @@ export function GestureRecognizerProvider({ children }: { children: ReactNode })
   }, []);
 
   const resetTrackingState = useCallback(() => {
-    landmarkSmootherRef.current.reset();
+    handLandmarkSmootherRef.current.reset();
+    poseLandmarkSmootherRef.current.reset();
     gestureStabilizerRef.current.reset();
     lastVideoTimeRef.current = -1;
     // Keep frameIndexRef monotonic — MediaPipe VIDEO mode rejects timestamp resets.
@@ -459,26 +466,33 @@ export function GestureRecognizerProvider({ children }: { children: ReactNode })
 
           let smoothedHandLandmarks = rawLandmarks;
           if (rawLandmarks.length > 0) {
-            smoothedHandLandmarks = landmarkSmootherRef.current.smooth(rawLandmarks, timestamp);
+            smoothedHandLandmarks = handLandmarkSmootherRef.current.smooth(rawLandmarks, timestamp);
           } else {
-            landmarkSmootherRef.current.reset();
+            handLandmarkSmootherRef.current.reset();
           }
 
           const poseResult = poseLandmarker.detectForVideo(video, timestamp);
           const faceResult = faceLandmarker.detectForVideo(video, timestamp);
-          const poseLandmarks = poseResult.landmarks ?? [];
+          const rawPoseLandmarks = poseResult.landmarks ?? [];
 
-          if (rawLandmarks.length === 0 && poseLandmarks.length === 0) {
+          let smoothedPoseLandmarks = rawPoseLandmarks;
+          if (rawPoseLandmarks.length > 0) {
+            smoothedPoseLandmarks = poseLandmarkSmootherRef.current.smooth(rawPoseLandmarks, timestamp);
+          } else {
+            poseLandmarkSmootherRef.current.reset();
+          }
+
+          if (rawLandmarks.length === 0 && rawPoseLandmarks.length === 0) {
             gestureStabilizerRef.current.reset();
           }
 
           processResult(
             result,
             smoothedHandLandmarks,
-            poseLandmarks,
+            smoothedPoseLandmarks,
             faceResult.faceBlendshapes,
           );
-          drawPreview(smoothedHandLandmarks, poseLandmarks, video);
+          drawPreview(smoothedHandLandmarks, smoothedPoseLandmarks, video);
         } catch (err) {
           console.warn('Gesture recognition frame failed:', err);
         }
@@ -583,7 +597,8 @@ export function GestureRecognizerProvider({ children }: { children: ReactNode })
       poseLandmarkerRef.current = null;
       faceLandmarkerRef.current = null;
       modelReadyRef.current = false;
-      landmarkSmootherRef.current.reset();
+      handLandmarkSmootherRef.current.reset();
+      poseLandmarkSmootherRef.current.reset();
       gestureStabilizerRef.current.reset();
       lastVideoTimeRef.current = -1;
       lastMpTimestampRef.current = 0;
