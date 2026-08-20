@@ -7,6 +7,8 @@ on:
 
 permissions:
   contents: write
+  pages: write
+  id-token: write
 
 concurrency:
   group: pages
@@ -40,3 +42,36 @@ jobs:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           publish_dir: ./dist
           publish_branch: gh-pages
+
+      - name: Point GitHub Pages at gh-pages branch
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const owner = context.repo.owner;
+            const repo = context.repo.repo;
+            const source = { branch: 'gh-pages', path: '/' };
+
+            async function configureLegacyPages() {
+              try {
+                await github.rest.repos.updateInformationAboutPagesSite({
+                  owner,
+                  repo,
+                  build_type: 'legacy',
+                  source,
+                });
+                core.info('Updated GitHub Pages source to gh-pages branch.');
+                return;
+              } catch (error) {
+                if (error.status !== 404) throw error;
+              }
+
+              await github.rest.repos.createPagesSite({
+                owner,
+                repo,
+                build_type: 'legacy',
+                source,
+              });
+              core.info('Created GitHub Pages site using gh-pages branch.');
+            }
+
+            await configureLegacyPages();
