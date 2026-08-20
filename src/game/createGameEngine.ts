@@ -27,6 +27,7 @@ export interface GameEngineCallbacks {
 export interface GameEngine {
   dispose(): void;
   flyToLevel(levelId: number, onComplete?: () => void): void;
+  playOutroCelebration(): void;
   completeLevel(levelId: number): boolean;
   resetLevelProgress(): void;
   applyPanelAwareCamera(panelVisible: boolean, panelWidth: number): void;
@@ -741,6 +742,10 @@ export function createGameEngine(
     if (t >= 1) {
       const cb = onComplete;
       cameraFlyAnim = null;
+
+      const landedDist = camera.position.distanceTo(controls.target);
+      controls.minDistance = Math.min(controls.minDistance, landedDist * 0.92);
+
       controls.enabled = true;
       controls.update();
       const slot = levelSlots[levelIdx];
@@ -777,6 +782,8 @@ export function createGameEngine(
   }
 
   function resetLevelProgress() {
+    cancelCameraFly();
+    setAutoRotate(false);
     cancelLevelAnimations();
     [...completedLevels].forEach((id) => restoreLevelZone(id));
     completedLevels.clear();
@@ -824,6 +831,37 @@ export function createGameEngine(
     };
   }
 
+  function setAutoRotate(enabled: boolean) {
+    params.autoRotate = enabled;
+    gui.controllersRecursive().forEach((c) => {
+      if (c.property === 'autoRotate') c.updateDisplay();
+    });
+  }
+
+  function cancelCameraFly() {
+    cameraFlyAnim = null;
+    controls.enabled = true;
+  }
+
+  function flyToView(
+    cam: [number, number, number],
+    tgt: [number, number, number],
+    options: { duration?: number; levelIdx?: number; onComplete?: () => void } = {},
+  ) {
+    setAutoRotate(false);
+    cameraFlyAnim = {
+      fromCam: camera.position.clone(),
+      toCam: new THREE.Vector3(cam[0], cam[1], cam[2]),
+      fromTgt: controls.target.clone(),
+      toTgt: new THREE.Vector3(tgt[0], tgt[1], tgt[2]),
+      start: performance.now(),
+      duration: options.duration ?? 1400,
+      levelIdx: options.levelIdx ?? -1,
+      onComplete: options.onComplete ?? null,
+    };
+    controls.enabled = false;
+  }
+
   function flyToLevel(levelId: number, onComplete?: () => void) {
     const slot = levelSlots[levelId - 1];
     if (!slot?.pos) return;
@@ -833,22 +871,18 @@ export function createGameEngine(
     if (slot.cam) view.cam = slot.cam;
     if (slot.tgt) view.tgt = slot.tgt;
 
-    params.autoRotate = false;
-    gui.controllersRecursive().forEach((c) => {
-      if (c.property === 'autoRotate') c.updateDisplay();
-    });
-
-    cameraFlyAnim = {
-      fromCam: camera.position.clone(),
-      toCam: new THREE.Vector3(view.cam[0], view.cam[1], view.cam[2]),
-      fromTgt: controls.target.clone(),
-      toTgt: new THREE.Vector3(view.tgt[0], view.tgt[1], view.tgt[2]),
-      start: performance.now(),
-      duration: 1400,
+    flyToView(view.cam, view.tgt, {
       levelIdx: levelId - 1,
-      onComplete: typeof onComplete === 'function' ? onComplete : null,
-    };
-    controls.enabled = false;
+      onComplete,
+    });
+  }
+
+  function playOutroCelebration() {
+    if (!model) return;
+    flyToView(applyModelOffset(P1_CAM), applyModelOffset(P1_TGT), {
+      duration: 2000,
+      onComplete: () => setAutoRotate(true),
+    });
   }
 
   function saveLevelDevState() {
@@ -1476,6 +1510,7 @@ export function createGameEngine(
     },
 
     flyToLevel,
+    playOutroCelebration,
     completeLevel,
     resetLevelProgress,
     applyPanelAwareCamera,

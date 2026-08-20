@@ -233,6 +233,11 @@ export default function App() {
     setFlowState('intro');
   };
 
+  useEffect(() => {
+    if (flowState !== 'outro' || !modelReady) return;
+    engineRef.current?.playOutroCelebration();
+  }, [flowState, modelReady]);
+
   return (
     <>
       <LoaderOverlay status={loadStatus} error={loadError} visible={showLoader && !loadError} />
