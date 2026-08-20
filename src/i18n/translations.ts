@@ -1,6 +1,7 @@
 import type { Language } from '@/i18n/types';
 
 const en = {
+  gameTitle: 'Move it Move it',
   welcomeTitle: 'Welcome to Family Day',
   selectMode: 'Please select your mode',
   singleMode: 'Single Mode',
@@ -41,6 +42,7 @@ const en = {
 } as const;
 
 const zh = {
+  gameTitle: 'Move it Move it',
   welcomeTitle: '欢迎来到 Family Day',
   selectMode: '请选择你的模式',
   singleMode: '单人模式',

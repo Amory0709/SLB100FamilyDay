@@ -21,7 +21,8 @@ export const LobbyPanel = forwardRef<HTMLDivElement, LobbyPanelProps>(function L
       <LanguageSwitcher />
 
       <div className="panel-text">
-        <h1>{t('welcomeTitle')}</h1>
+        <h1 className="game-title">{t('gameTitle')}</h1>
+        <p className="welcome-subtitle">{t('welcomeTitle')}</p>
       </div>
 
       <h2 className="mode-prompt">{t('selectMode')}</h2>
