@@ -42,4 +42,8 @@ npm run preview
 
 ## GitHub Pages
 
-部署 `dist/` 到 `gh-pages` 或 Actions。线上 base path：`/SLB100FamilyDay/`。
+Push to `main` runs `.github/workflows/deploy-pages.yml`, builds `dist/`, publishes to **`gh-pages`** branch.
+
+**One-time setup:** repo **Settings → Pages → Build and deployment → Source:** Deploy from a branch → branch **`gh-pages`** → folder **`/ (root)`**.
+
+Live URL: `https://amory0709.github.io/SLB100FamilyDay/`
