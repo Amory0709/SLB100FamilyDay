@@ -282,7 +282,7 @@
 
 .level-card p {
   margin: 0;
-  color: #4a5070;
+  color: #0014c8;
   line-height: 1.55;
   white-space: pre-line;
 }
@@ -290,7 +290,7 @@
 .small-note {
   margin-top: 14px !important;
   font-size: 12px;
-  color: #8a90a8 !important;
+  color: #0014c8 !important;
 }
 
 .level-card-actions {
@@ -318,7 +318,7 @@
 
 .level-btn-ghost {
   background: transparent;
-  color: #6b7290;
+  color: #0014c8;
   border: 1.5px solid #d8dceb;
 }
 
@@ -382,7 +382,7 @@
 
 .task-hint {
   font-size: 15px;
-  color: #4a5070;
+  color: #0014c8;
   margin-top: 6px;
 }
 
@@ -404,29 +404,12 @@
   padding-bottom: 4px;
 }
 
-.sequence-progress-bar {
-  width: 100%;
-  max-width: 500px;
-  height: 8px;
-  background: rgba(0, 20, 200, 0.1);
-  border-radius: 4px;
-  margin-top: 16px;
-  overflow: hidden;
-}
-
-.sequence-progress-fill {
-  height: 100%;
-  background: var(--level-color, #0014c8);
-  border-radius: 4px;
-  transition: width 0.1s linear;
-}
-
 .task-gestures-empty {
   margin-top: 10px;
   padding: 14px;
   border: 1.5px dashed #d8dceb;
   border-radius: 12px;
-  color: #8a90a8;
+  color: #0014c8;
   font-size: 12.5px;
 }
 
@@ -508,7 +491,7 @@
 
 .task-card-hint {
   font-size: 11px;
-  color: #6b7290;
+  color: #0014c8;
   min-height: 28px;
 }
 
@@ -602,7 +585,7 @@
 
 .gesture-hint-text {
   font-size: 13px;
-  color: #6b7290;
+  color: #0014c8;
   line-height: 1.5;
   text-align: center;
 }

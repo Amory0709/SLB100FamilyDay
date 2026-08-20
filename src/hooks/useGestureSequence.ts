@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import type { LevelGesture } from '@/types/levels';
 import { gestureKeyMatches } from '@/lib/gestures/mapping';
 
-export const HOLD_MS = 500;
+export const HOLD_MS = 2000;
 
 export type GestureStepStatus = 'pending' | 'active' | 'done' | 'wrong';
 

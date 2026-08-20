@@ -117,17 +117,6 @@ export function LevelTaskBar({ level, onComplete }: LevelTaskBarProps) {
                 />
               ))}
             </div>
-
-            {useRecognition && (
-              <div className="sequence-progress-bar">
-                <div
-                  className="sequence-progress-fill"
-                  style={{
-                    width: `${Math.min(100, ((sequence.currentIndex + smoothProgress) / gestures.length) * 100)}%`,
-                  }}
-                />
-              </div>
-            )}
           </>
         )}
       </div>
