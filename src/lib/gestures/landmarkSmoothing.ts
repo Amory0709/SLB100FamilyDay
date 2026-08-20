@@ -35,7 +35,8 @@ function hipCenter(landmarks: NormalizedLandmark[]): NormalizedLandmark {
   return {
     x: (lh.x + rh.x) / 2,
     y: (lh.y + rh.y) / 2,
-    z: lh.z !== undefined && rh.z !== undefined ? (lh.z + rh.z) / 2 : undefined,
+    z: ((lh.z ?? 0) + (rh.z ?? 0)) / 2,
+    visibility: Math.min(lh.visibility ?? 1, rh.visibility ?? 1),
   };
 }
 

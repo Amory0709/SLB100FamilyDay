@@ -23,6 +23,10 @@ import {
   DEFAULT_LANDMARK_SMOOTHER_OPTIONS,
   DEFAULT_POSE_LANDMARK_SMOOTHER_OPTIONS,
 } from '@/lib/gestures/landmarkSmoothing';
+import {
+  MultiFaceBlendshapeSmoother,
+  DEFAULT_FACE_BLENDSHAPE_SMOOTHER_OPTIONS,
+} from '@/lib/gestures/faceBlendshapeSmoothing';
 import { GestureKeyStabilizer } from '@/lib/gestures/gestureStabilizer';
 import { translate } from '@/i18n/translations';
 import { useLanguage } from '@/i18n/LanguageContext';
@@ -205,6 +209,9 @@ export function GestureRecognizerProvider({ children }: { children: ReactNode })
   const bootSessionRef = useRef(0);
   const handLandmarkSmootherRef = useRef(new MultiHandLandmarkSmoother(DEFAULT_LANDMARK_SMOOTHER_OPTIONS));
   const poseLandmarkSmootherRef = useRef(new MultiPoseLandmarkSmoother(DEFAULT_POSE_LANDMARK_SMOOTHER_OPTIONS));
+  const faceBlendshapeSmootherRef = useRef(
+    new MultiFaceBlendshapeSmoother(DEFAULT_FACE_BLENDSHAPE_SMOOTHER_OPTIONS),
+  );
   const gestureStabilizerRef = useRef(new GestureKeyStabilizer());
 
   const [bootStatus, setBootStatus] = useState<GestureRecognizerStatus>('idle');
@@ -231,6 +238,7 @@ export function GestureRecognizerProvider({ children }: { children: ReactNode })
   const resetTrackingState = useCallback(() => {
     handLandmarkSmootherRef.current.reset();
     poseLandmarkSmootherRef.current.reset();
+    faceBlendshapeSmootherRef.current.reset();
     gestureStabilizerRef.current.reset();
     lastVideoTimeRef.current = -1;
     // Keep frameIndexRef monotonic — MediaPipe VIDEO mode rejects timestamp resets.
@@ -419,7 +427,7 @@ export function GestureRecognizerProvider({ children }: { children: ReactNode })
       result: GestureRecognizerResult,
       smoothedHandLandmarks: NormalizedLandmark[][],
       poseLandmarks: NormalizedLandmark[][],
-      faceBlendshapes: ReturnType<FaceLandmarker['detectForVideo']>['faceBlendshapes'],
+      faceBlendshapes: ReturnType<FaceLandmarker['detectForVideo']>['faceBlendshapes'] | undefined,
     ) {
       const top = result.gestures?.[0]?.[0];
       const mpCategory = top?.categoryName && top.categoryName !== 'None' ? top.categoryName : null;
@@ -474,6 +482,10 @@ export function GestureRecognizerProvider({ children }: { children: ReactNode })
           const poseResult = poseLandmarker.detectForVideo(video, timestamp);
           const faceResult = faceLandmarker.detectForVideo(video, timestamp);
           const rawPoseLandmarks = poseResult.landmarks ?? [];
+          const smoothedFaceBlendshapes = faceBlendshapeSmootherRef.current.smooth(
+            faceResult.faceBlendshapes,
+            timestamp,
+          );
 
           let smoothedPoseLandmarks = rawPoseLandmarks;
           if (rawPoseLandmarks.length > 0) {
@@ -490,7 +502,7 @@ export function GestureRecognizerProvider({ children }: { children: ReactNode })
             result,
             smoothedHandLandmarks,
             smoothedPoseLandmarks,
-            faceResult.faceBlendshapes,
+            smoothedFaceBlendshapes,
           );
           drawPreview(smoothedHandLandmarks, smoothedPoseLandmarks, video);
         } catch (err) {
@@ -599,6 +611,7 @@ export function GestureRecognizerProvider({ children }: { children: ReactNode })
       modelReadyRef.current = false;
       handLandmarkSmootherRef.current.reset();
       poseLandmarkSmootherRef.current.reset();
+      faceBlendshapeSmootherRef.current.reset();
       gestureStabilizerRef.current.reset();
       lastVideoTimeRef.current = -1;
       lastMpTimestampRef.current = 0;
