@@ -18,8 +18,6 @@ export const LobbyPanel = forwardRef<HTMLDivElement, LobbyPanelProps>(function L
 
   return (
     <div id="slb-panel" ref={ref}>
-      <LanguageSwitcher />
-
       <div className="panel-text">
         <h1 className="game-title">{t('gameTitle')}</h1>
         <p className="welcome-subtitle">{t('welcomeTitle')}</p>
@@ -56,6 +54,10 @@ export const LobbyPanel = forwardRef<HTMLDivElement, LobbyPanelProps>(function L
           loop
           preload="auto"
         />
+      </div>
+
+      <div className="panel-language-wrap">
+        <LanguageSwitcher />
       </div>
     </div>
   );

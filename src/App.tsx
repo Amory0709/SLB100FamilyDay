@@ -10,7 +10,6 @@ import { LevelIntroModal } from '@/components/LevelIntroModal';
 import { LevelTaskBar } from '@/components/LevelTaskBar';
 import { LevelWonModal } from '@/components/LevelWonModal';
 import { LevelOutroModal } from '@/components/LevelOutroModal';
-import { LanguageSwitcher } from '@/components/LanguageSwitcher';
 import { useLanguage } from '@/i18n/LanguageContext';
 import { HandCursorOverlay } from '@/components/HandCursorOverlay';
 import { HandControlIntroModal } from '@/components/HandControlIntroModal';
@@ -258,12 +257,6 @@ export default function App() {
 
       {appReady && !handIntroDone && (
         <HandControlIntroModal onContinue={() => setHandIntroDone(true)} />
-      )}
-
-      {!lobbyVisible && (
-        <div className="language-switcher-floating">
-          <LanguageSwitcher />
-        </div>
       )}
 
       <GameViewport containerRef={viewportRef} />

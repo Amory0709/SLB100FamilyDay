@@ -3,7 +3,7 @@ import type { NormalizedLandmark } from '@mediapipe/tasks-vision';
 /** Palm base landmarks used to track the hand center (not index finger). */
 const PALM_LANDMARKS = [0, 5, 9, 13, 17] as const;
 
-export const HAND_CURSOR_DWELL_MS = 1500;
+export const HAND_CURSOR_DWELL_MS = 1000;
 
 export interface NormalizedHandCursor {
   /** Normalized x in screen space (0 = left, 1 = right), mirrored for front camera. */

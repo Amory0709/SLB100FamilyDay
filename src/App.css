@@ -37,20 +37,11 @@
   padding: 3px;
   border-radius: 999px;
   background: rgba(255, 255, 255, 0.14);
-  align-self: flex-end;
 }
 
-.language-switcher-floating {
-  position: fixed;
-  top: 14px;
-  right: 14px;
-  z-index: 8999;
-}
-
-.language-switcher-floating .language-switcher {
-  background: rgba(255, 255, 255, 0.92);
-  border: 1.5px solid #d8dceb;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+.panel-language-wrap {
+  align-self: flex-start;
+  margin-top: 16px;
 }
 
 .language-switcher-btn {
@@ -67,10 +58,6 @@
   transition: background 0.15s ease, opacity 0.15s ease;
 }
 
-.language-switcher-floating .language-switcher-btn {
-  color: #0014c8;
-}
-
 .language-switcher-btn:hover {
   opacity: 1;
 }
@@ -81,18 +68,9 @@
   color: #0014c8;
 }
 
-.language-switcher-floating .language-switcher-btn.active {
-  background: #0014c8;
-  color: #fff;
-}
-
 .language-switcher-btn:focus-visible {
   outline: 2px solid #fff;
   outline-offset: 2px;
-}
-
-.language-switcher-floating .language-switcher-btn:focus-visible {
-  outline-color: #0014c8;
 }
 
 .panel-text {

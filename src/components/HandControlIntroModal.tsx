@@ -7,7 +7,7 @@ interface HandControlIntroModalProps {
   onContinue: () => void;
 }
 
-const dwellSeconds = (HAND_CURSOR_DWELL_MS / 1000).toFixed(1);
+const dwellSeconds = String(HAND_CURSOR_DWELL_MS / 1000);
 
 function CameraIcon() {
   return (
