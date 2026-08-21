@@ -8,11 +8,16 @@ export const GESTURE_GLYPHS: Record<string, ReactNode> = {
   point_diagonal_down: <span style={{ fontSize: '64px', display: 'block' }}>👇</span>,
   hse_lift: <span style={{ fontSize: '64px', display: 'block' }}>🏋️</span>,
   hse_lift_duo: <span style={{ fontSize: '64px', display: 'block' }}>👥🏋️</span>,
-  muscle_pose: <span style={{ fontSize: '64px', display: 'block' }}>💪</span>,
+  muscle_pose: (
+    <span className="glyph-emoji-dual glyph-emoji-symmetric" aria-hidden="true">
+      <span>💪</span>
+      <span className="glyph-emoji-mirror">💪</span>
+    </span>
+  ),
   double_thumb_up: (
-    <span className="glyph-emoji-dual" aria-hidden="true">
+    <span className="glyph-emoji-dual glyph-emoji-symmetric" aria-hidden="true">
       <span>👍</span>
-      <span>👍</span>
+      <span className="glyph-emoji-mirror">👍</span>
     </span>
   ),
   double_thumb_up_duo: (

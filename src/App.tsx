@@ -176,6 +176,7 @@ export default function App() {
     setCurrentMode(null);
     setCurrentLevel(0);
     setLobbyVisible(true);
+    setHandIntroDone(false);
     engineRef.current?.setLevelColors([...LEVEL_COLORS]);
     engineRef.current?.returnToLobby();
   };
@@ -210,36 +211,6 @@ export default function App() {
     engineRef.current?.completeLevel(id);
     setFlowState('won');
   }, [currentLevel]);
-
-  const handleWonNext = () => {
-    const next = currentLevel + 1;
-    if (next > totalLevels) setFlowState('outro');
-    else {
-      setCurrentLevel(next);
-      setFlowState('intro');
-    }
-  };
-
-  const handleWonReplay = () => {
-    setTaskActive(false);
-    setFlowState('task');
-
-    const needsGesture =
-      levelConfig?.completionType === 'gesture' && (levelConfig?.gestures?.length ?? 0) > 0;
-    if (needsGesture) {
-      void ensureGestureCamera().catch(() => {
-        /* surfaced in task bar */
-      });
-    }
-
-    engineRef.current?.flyToLevel(currentLevel, () => setTaskActive(true));
-  };
-
-  const handleOutroRestart = () => {
-    engineRef.current?.resetLevelProgress();
-    setCurrentLevel(1);
-    setFlowState('intro');
-  };
 
   useEffect(() => {
     if (flowState !== 'outro' || !modelReady) return;
@@ -297,8 +268,7 @@ export default function App() {
         <LevelWonModal
           level={levelConfig}
           totalLevels={totalLevels}
-          onNext={handleWonNext}
-          onReplay={handleWonReplay}
+          onLobby={handleReturnLobby}
         />
       )}
 
@@ -306,7 +276,6 @@ export default function App() {
         <LevelOutroModal
           text={modeConfig.outro}
           colors={celebrationColors}
-          onRestart={handleOutroRestart}
           onLobby={handleReturnLobby}
         />
       )}

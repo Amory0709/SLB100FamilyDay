@@ -59,7 +59,11 @@ export function LevelTaskBar({ level, onComplete }: LevelTaskBarProps) {
       <div className="level-color-orb" aria-hidden="true" />
 
       <div className="task-header">
-        <div className="task-icon">{level.taskIcon ?? '🎯'}</div>
+        <div className="task-icon">
+          {level.gestures?.[0]?.gestureKey === 'muscle_pose'
+            ? GESTURE_GLYPHS.muscle_pose
+            : (level.taskIcon ?? '🎯')}
+        </div>
         <div className="task-header-text">
           <div className="task-title">{level.title}</div>
           <div className="task-hint">{level.task}</div>

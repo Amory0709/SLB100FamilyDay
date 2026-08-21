@@ -4,13 +4,11 @@ import { useLanguage } from '@/i18n/LanguageContext';
 interface LevelWonModalProps {
   level: LevelConfig;
   totalLevels: number;
-  onNext: () => void;
-  onReplay: () => void;
+  onLobby: () => void;
 }
 
-export function LevelWonModal({ level, totalLevels, onNext, onReplay }: LevelWonModalProps) {
+export function LevelWonModal({ level, totalLevels, onLobby }: LevelWonModalProps) {
   const { t } = useLanguage();
-  const isLast = level.id >= totalLevels;
 
   return (
     <div
@@ -27,11 +25,8 @@ export function LevelWonModal({ level, totalLevels, onNext, onReplay }: LevelWon
         </h2>
         <p>{level.reward ?? t('defaultReward')}</p>
         <div className="level-card-actions">
-          <button className="level-btn level-btn-primary" type="button" onClick={onNext}>
-            {isLast ? t('allComplete') : t('nextLevel')}
-          </button>
-          <button className="level-btn level-btn-ghost" type="button" onClick={onReplay}>
-            {t('replayLevel')}
+          <button className="level-btn level-btn-primary" type="button" onClick={onLobby}>
+            {t('returnMainMenu')}
           </button>
         </div>
         <p className="small-note">

@@ -9,12 +9,12 @@ const HAND_BONES: ReadonlyArray<readonly [number, number]> = [
 ];
 
 const POSE_BONES: ReadonlyArray<readonly [number, number]> = [
+  [0, 1], [1, 2], [2, 3], [0, 4], [4, 5], [5, 6], [0, 11], [0, 12], [7, 8], [9, 10],
   [11, 12], [11, 13], [13, 15], [15, 17], [15, 19], [15, 21],
   [12, 14], [14, 16], [16, 18], [16, 20], [16, 22],
   [11, 23], [12, 24], [23, 24],
   [23, 25], [25, 27], [27, 29], [27, 31],
   [24, 26], [26, 28], [28, 30], [28, 32],
-  [0, 11], [0, 12],
 ];
 
 /** Mean hand bone length — reference for scale-normalized motion thresholds. */
@@ -24,6 +24,8 @@ export interface LandmarkSkeleton {
   bones: ReadonlyArray<readonly [number, number]>;
   getAnchor: (landmarks: NormalizedLandmark[]) => NormalizedLandmark;
   minLandmarks: number;
+  /** Extra bone-length passes (pose benefits from a second pass). Default 1. */
+  bonePassCount?: number;
 }
 
 export const HAND_SKELETON: LandmarkSkeleton = {
@@ -34,8 +36,9 @@ export const HAND_SKELETON: LandmarkSkeleton = {
 
 export const POSE_SKELETON: LandmarkSkeleton = {
   bones: POSE_BONES,
-  getAnchor: hipCenter,
+  getAnchor: torsoCenter,
   minLandmarks: 25,
+  bonePassCount: 2,
 };
 
 function cloneLandmarks(landmarks: NormalizedLandmark[]): NormalizedLandmark[] {
@@ -58,6 +61,19 @@ function hipCenter(landmarks: NormalizedLandmark[]): NormalizedLandmark {
     y: (lh.y + rh.y) / 2,
     z: ((lh.z ?? 0) + (rh.z ?? 0)) / 2,
     visibility: Math.min(lh.visibility ?? 1, rh.visibility ?? 1),
+  };
+}
+
+/** Shoulders + hips — less hip-only jitter than hipCenter alone. */
+function torsoCenter(landmarks: NormalizedLandmark[]): NormalizedLandmark {
+  const ls = landmarks[11];
+  const rs = landmarks[12];
+  const hip = hipCenter(landmarks);
+  return {
+    x: (ls.x + rs.x + hip.x) / 3,
+    y: (ls.y + rs.y + hip.y) / 3,
+    z: ((ls.z ?? 0) + (rs.z ?? 0) + (hip.z ?? 0)) / 3,
+    visibility: Math.min(ls.visibility ?? 1, rs.visibility ?? 1, hip.visibility ?? 1),
   };
 }
 
@@ -94,12 +110,23 @@ export const DEFAULT_LANDMARK_SMOOTHER_OPTIONS: Required<LandmarkSmootherOptions
   boneLengthSpeedThreshold: 0.012,
 };
 
-/** @deprecated use DEFAULT_LANDMARK_SMOOTHER_OPTIONS — pose now shares hand tuning. */
-export const DEFAULT_POSE_LANDMARK_SMOOTHER_OPTIONS = DEFAULT_LANDMARK_SMOOTHER_OPTIONS;
+/** Pose needs stronger filtering than hand — MediaPipe body noise is higher in absolute coords. */
+export const DEFAULT_POSE_LANDMARK_SMOOTHER_OPTIONS: Required<LandmarkSmootherOptions> = {
+  maxDelta: 0.06,
+  wristAlphaMin: 0.16,
+  wristAlphaMax: 0.74,
+  fingerAlphaMin: 0.1,
+  fingerAlphaMax: 0.6,
+  speedForMaxAlpha: 0.026,
+  deadZone: 0.0007,
+  boneLengthBlend: 0.55,
+  boneLengthSpeedThreshold: 0.016,
+};
 
 interface StabilizerState {
   prev: NormalizedLandmark[] | null;
   boneLengths: number[] | null;
+  anchorSpeed: number;
 }
 
 function movementFactor(anchorSpeed: number, speedForMaxAlpha: number): number {
@@ -119,19 +146,33 @@ function measureSkeletonScale(
   return sum / bones.length;
 }
 
-function scaleMotionOptions(
-  options: Required<LandmarkSmootherOptions>,
+function measureSkeletonScaleFactor(
   landmarks: NormalizedLandmark[],
   bones: ReadonlyArray<readonly [number, number]>,
+): number {
+  return measureSkeletonScale(landmarks, bones) / HAND_REFERENCE_SCALE;
+}
+
+function scaleMotionOptions(
+  options: Required<LandmarkSmootherOptions>,
+  skeletonScale: number,
 ): Required<LandmarkSmootherOptions> {
-  const scale = measureSkeletonScale(landmarks, bones) / HAND_REFERENCE_SCALE;
   return {
     ...options,
-    maxDelta: options.maxDelta * scale,
-    deadZone: options.deadZone * scale,
-    speedForMaxAlpha: options.speedForMaxAlpha * scale,
-    boneLengthSpeedThreshold: options.boneLengthSpeedThreshold * scale,
+    deadZone: options.deadZone * skeletonScale,
+    speedForMaxAlpha: options.speedForMaxAlpha * skeletonScale,
+    boneLengthSpeedThreshold: options.boneLengthSpeedThreshold * skeletonScale,
   };
+}
+
+function resolveMaxDelta(
+  baseMaxDelta: number,
+  skeletonScale: number,
+  moveFactor: number,
+): number {
+  const stillMaxDelta = baseMaxDelta * 0.55;
+  const movingMaxDelta = baseMaxDelta * skeletonScale;
+  return lerp(stillMaxDelta, movingMaxDelta, moveFactor);
 }
 
 function measureAnchorSpeed(
@@ -160,12 +201,13 @@ function clampOutliers(
   prev: NormalizedLandmark[] | null,
   anchorSpeed: number,
   options: Required<LandmarkSmootherOptions>,
+  skeletonScale: number,
   getAnchor: (lm: NormalizedLandmark[]) => NormalizedLandmark,
 ): NormalizedLandmark[] {
   if (!prev || prev.length !== landmarks.length) return landmarks;
 
   const moveFactor = movementFactor(anchorSpeed, options.speedForMaxAlpha);
-  const maxDelta = lerp(options.maxDelta * 0.55, options.maxDelta, moveFactor);
+  const maxDelta = resolveMaxDelta(options.maxDelta, skeletonScale, moveFactor);
   const anchor = getAnchor(landmarks);
   const prevAnchor = getAnchor(prev);
 
@@ -299,14 +341,28 @@ function stabilizeLandmarkSet(
   options: Required<LandmarkSmootherOptions>,
   skeleton: LandmarkSkeleton,
 ): NormalizedLandmark[] {
-  const motionOptions = scaleMotionOptions(options, landmarks, skeleton.bones);
-  const anchorSpeed = measureAnchorSpeed(landmarks, state.prev, skeleton.getAnchor);
+  const skeletonScale = measureSkeletonScaleFactor(landmarks, skeleton.bones);
+  const motionOptions = scaleMotionOptions(options, skeletonScale);
+  const rawAnchorSpeed = measureAnchorSpeed(landmarks, state.prev, skeleton.getAnchor);
+  state.anchorSpeed =
+    state.prev === null ? rawAnchorSpeed : lerp(state.anchorSpeed, rawAnchorSpeed, 0.22);
+  const anchorSpeed = state.anchorSpeed;
 
-  let next = clampOutliers(landmarks, state.prev, anchorSpeed, motionOptions, skeleton.getAnchor);
+  let next = clampOutliers(
+    landmarks,
+    state.prev,
+    anchorSpeed,
+    motionOptions,
+    skeletonScale,
+    skeleton.getAnchor,
+  );
   next = smoothAnchorRelative(next, state.prev, anchorSpeed, motionOptions, skeleton.getAnchor);
 
   if (anchorSpeed < motionOptions.boneLengthSpeedThreshold) {
-    next = enforceBoneLengths(next, state, motionOptions, skeleton.bones);
+    const passes = skeleton.bonePassCount ?? 1;
+    for (let pass = 0; pass < passes; pass++) {
+      next = enforceBoneLengths(next, state, motionOptions, skeleton.bones);
+    }
   }
 
   state.prev = cloneLandmarks(next);
@@ -316,7 +372,7 @@ function stabilizeLandmarkSet(
 class LandmarkStabilizer {
   private readonly skeleton: LandmarkSkeleton;
   private readonly options: Required<LandmarkSmootherOptions>;
-  private state: StabilizerState = { prev: null, boneLengths: null };
+  private state: StabilizerState = { prev: null, boneLengths: null, anchorSpeed: 0 };
 
   constructor(skeleton: LandmarkSkeleton, options: Required<LandmarkSmootherOptions>) {
     this.skeleton = skeleton;
@@ -331,6 +387,7 @@ class LandmarkStabilizer {
   reset(): void {
     this.state.prev = null;
     this.state.boneLengths = null;
+    this.state.anchorSpeed = 0;
   }
 }
 
@@ -371,6 +428,6 @@ export class MultiHandLandmarkSmoother extends MultiLandmarkSmoother {
 
 export class MultiPoseLandmarkSmoother extends MultiLandmarkSmoother {
   constructor(options: LandmarkSmootherOptions = {}) {
-    super(POSE_SKELETON, options);
+    super(POSE_SKELETON, { ...DEFAULT_POSE_LANDMARK_SMOOTHER_OPTIONS, ...options });
   }
 }

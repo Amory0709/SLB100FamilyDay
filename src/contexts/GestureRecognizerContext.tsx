@@ -218,7 +218,7 @@ export function GestureRecognizerProvider({ children }: { children: ReactNode })
   const cameraBootRef = useRef<Promise<void> | null>(null);
   const bootSessionRef = useRef(0);
   const handLandmarkSmootherRef = useRef(new MultiHandLandmarkSmoother(DEFAULT_LANDMARK_SMOOTHER_OPTIONS));
-  const poseLandmarkSmootherRef = useRef(new MultiPoseLandmarkSmoother(DEFAULT_LANDMARK_SMOOTHER_OPTIONS));
+  const poseLandmarkSmootherRef = useRef(new MultiPoseLandmarkSmoother());
   const faceBlendshapeSmootherRef = useRef(
     new MultiFaceBlendshapeSmoother(DEFAULT_FACE_BLENDSHAPE_SMOOTHER_OPTIONS),
   );

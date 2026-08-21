@@ -383,6 +383,11 @@
   line-height: 1;
 }
 
+.task-icon .glyph-emoji-dual {
+  font-size: 28px;
+  gap: 0;
+}
+
 .task-header-text {
   flex: 1;
   min-width: 0;
@@ -471,6 +476,11 @@
   gap: 2px;
   line-height: 1;
   font-size: 34px;
+}
+
+.task-card-glyph .glyph-emoji-mirror {
+  display: inline-block;
+  transform: scaleX(-1);
 }
 
 .task-card-glyph svg {
