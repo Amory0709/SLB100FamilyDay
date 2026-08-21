@@ -242,7 +242,13 @@ export default function App() {
   }, [flowState, modelReady]);
 
   const appReady = !showLoader && !loadError;
-  const handCursorEnabled = appReady && gestureBootStatus !== 'error';
+  const gestureRecognitionActive =
+    flowState === 'task' &&
+    taskActive &&
+    levelConfig?.completionType === 'gesture' &&
+    (levelConfig.gestures?.length ?? 0) > 0;
+  const handCursorEnabled =
+    appReady && gestureBootStatus !== 'error' && !gestureRecognitionActive;
 
   return (
     <>

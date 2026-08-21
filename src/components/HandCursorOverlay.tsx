@@ -7,10 +7,9 @@ import {
   type NormalizedHandCursor,
 } from '@/lib/gestures/handCursor';
 import { useGestureRecognizerContext } from '@/contexts/GestureRecognizerContext';
-import { HAND_CURSOR_RING_RADIUS, HandCursorMark } from '@/components/HandCursorMark';
+import { HAND_CURSOR_LIVE_SIZE, HAND_CURSOR_RING_RADIUS, HandCursorMark } from '@/components/HandCursorMark';
 
 const HAND_CURSOR_CONSUMER = 'hand-cursor';
-const HAND_CURSOR_SIZE = 88;
 const RING_CIRCUMFERENCE = 2 * Math.PI * HAND_CURSOR_RING_RADIUS;
 
 interface HandCursorOverlayProps {
@@ -101,11 +100,22 @@ export function HandCursorOverlay({ enabled }: HandCursorOverlayProps) {
 
   if (!enabled) return null;
 
+  const halfSize = HAND_CURSOR_LIVE_SIZE / 2;
+
   return (
     <div className="hand-cursor-layer" aria-hidden="true">
-      <div ref={dotRef} className="hand-cursor-dot" data-visible="false">
+      <div
+        ref={dotRef}
+        className="hand-cursor-dot"
+        data-visible="false"
+        style={{
+          width: HAND_CURSOR_LIVE_SIZE,
+          height: HAND_CURSOR_LIVE_SIZE,
+          margin: `${-halfSize}px 0 0 ${-halfSize}px`,
+        }}
+      >
         <HandCursorMark
-          size={HAND_CURSOR_SIZE}
+          size={HAND_CURSOR_LIVE_SIZE}
           gradientId={gradientId}
           filterId={filterId}
           progressRef={progressRef}

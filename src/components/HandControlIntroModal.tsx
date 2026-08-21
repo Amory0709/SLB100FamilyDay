@@ -1,7 +1,7 @@
 import { useId } from 'react';
 import { useLanguage } from '@/i18n/LanguageContext';
 import { HAND_CURSOR_DWELL_MS } from '@/lib/gestures/handCursor';
-import { HandCursorFog, HandCursorMark } from '@/components/HandCursorMark';
+import { HandCursorFog, HandCursorMark, HAND_CURSOR_FOG_BADGE_SIZE, HAND_CURSOR_FOG_ICON_SIZE } from '@/components/HandCursorMark';
 
 interface HandControlIntroModalProps {
   onContinue: () => void;
@@ -42,7 +42,7 @@ export function HandControlIntroModal({ onContinue }: HandControlIntroModalProps
     >
       <div className="level-card hand-control-intro-card">
         <div className="hand-intro-badge" aria-hidden="true">
-          <HandCursorFog size={48} filterId={badgeFogFilterId} animated />
+          <HandCursorFog size={HAND_CURSOR_FOG_BADGE_SIZE} filterId={badgeFogFilterId} animated />
         </div>
         <h2 id="hand-intro-title">{t('handIntroTitle')}</h2>
         <p className="hand-intro-lead">{t('handIntroLead')}</p>
@@ -56,14 +56,14 @@ export function HandControlIntroModal({ onContinue }: HandControlIntroModalProps
           </li>
           <li>
             <span className="hand-intro-step-icon">
-              <HandCursorFog size={40} filterId={stepFogFilterId} animated />
+              <HandCursorFog size={HAND_CURSOR_FOG_ICON_SIZE} filterId={stepFogFilterId} animated />
             </span>
             <span>{t('handIntroStepMove')}</span>
           </li>
           <li>
             <span className="hand-intro-step-icon">
               <HandCursorMark
-                size={40}
+                size={HAND_CURSOR_FOG_ICON_SIZE}
                 gradientId={stepRingGradientId}
                 filterId={stepRingFilterId}
                 progress={0.75}

@@ -3,6 +3,9 @@ import { type RefObject } from 'react';
 export const HAND_CURSOR_VIEW_SIZE = 48;
 export const HAND_CURSOR_RING_RADIUS = 16;
 export const HAND_CURSOR_FOG_BLUR = 3.2;
+export const HAND_CURSOR_LIVE_SIZE = 70;
+export const HAND_CURSOR_FOG_ICON_SIZE = 32;
+export const HAND_CURSOR_FOG_BADGE_SIZE = 38;
 
 /** Offset blobs — blur merges into purple-left / teal-right mist (matches intro reference). */
 export const HAND_CURSOR_FOG_LAYERS = [
@@ -58,7 +61,7 @@ export function HandCursorFogLayers({
   );
 }
 
-export function HandCursorFog({ size = 40, filterId, animated = true }: HandCursorFogProps) {
+export function HandCursorFog({ size = HAND_CURSOR_FOG_ICON_SIZE, filterId, animated = true }: HandCursorFogProps) {
   return (
     <svg viewBox="0 0 48 48" width={size} height={size} aria-hidden="true" className="hand-cursor-mark">
       <defs>
@@ -80,7 +83,7 @@ interface HandCursorMarkProps {
 }
 
 export function HandCursorMark({
-  size = 88,
+  size = HAND_CURSOR_LIVE_SIZE,
   gradientId,
   filterId,
   progress = 0,
