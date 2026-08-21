@@ -13,6 +13,7 @@ import { LevelOutroModal } from '@/components/LevelOutroModal';
 import { useLanguage } from '@/i18n/LanguageContext';
 import { HandCursorOverlay } from '@/components/HandCursorOverlay';
 import { HandControlIntroModal } from '@/components/HandControlIntroModal';
+import { HandModelControl } from '@/components/HandModelControl';
 import './App.css';
 
 import type { GestureRecognizerStatus } from '@/hooks/useGestureRecognizer';
@@ -41,6 +42,7 @@ export default function App() {
   const viewportRef = useRef<HTMLDivElement>(null);
   const engineRef = useRef<GameEngine | null>(null);
   const panelRef = useRef<HTMLDivElement>(null);
+  const modelControlActiveRef = useRef(false);
 
   const [rawLevelsConfig, setRawLevelsConfig] = useState<Awaited<ReturnType<typeof loadLevelsConfig>>>(null);
   const [loadStatus, setLoadStatus] = useState('');
@@ -171,7 +173,7 @@ export default function App() {
     setCurrentMode(null);
     setCurrentLevel(0);
     setLobbyVisible(true);
-    engineRef.current?.resetLevelProgress();
+    engineRef.current?.returnToLobby();
   };
 
   const handleIntroStart = () => {
@@ -248,18 +250,25 @@ export default function App() {
     (levelConfig.gestures?.length ?? 0) > 0;
   const handCursorEnabled =
     appReady && gestureBootStatus !== 'error' && !gestureRecognitionActive;
+  const handModelControlEnabled =
+    handCursorEnabled && lobbyVisible && modelReady && handIntroDone;
 
   return (
     <>
       <LoaderOverlay status={loadStatus} error={loadError} visible={showLoader && !loadError} />
 
-      <HandCursorOverlay enabled={handCursorEnabled} />
+      <HandCursorOverlay enabled={handCursorEnabled} suppressClickRef={modelControlActiveRef} />
 
       {appReady && !handIntroDone && (
         <HandControlIntroModal onContinue={() => setHandIntroDone(true)} />
       )}
 
-      <GameViewport containerRef={viewportRef} />
+      <GameViewport containerRef={viewportRef} showHint={!handModelControlEnabled} />
+      <HandModelControl
+        enabled={handModelControlEnabled}
+        engineRef={engineRef}
+        controlActiveRef={modelControlActiveRef}
+      />
 
       <LobbyPanel
         ref={panelRef}

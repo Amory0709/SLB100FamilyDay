@@ -16,11 +16,11 @@ export class GestureKeyStabilizer {
       this.history.shift();
     }
 
-    if (
-      this.stableKey !== null &&
-      countMatches(this.history, this.stableKey) >= this.minVotes - 1
-    ) {
-      return this.stableKey;
+    if (this.stableKey !== null) {
+      const support = countMatches(this.history, this.stableKey);
+      if (support >= this.minVotes - 1) {
+        return this.stableKey;
+      }
     }
 
     const candidate = pickStableGestureKey(this.history, this.minVotes);
@@ -29,7 +29,7 @@ export class GestureKeyStabilizer {
       return candidate;
     }
 
-    if (rawKey === null) {
+    if (this.stableKey !== null && countMatches(this.history, null) >= 3) {
       this.stableKey = null;
     }
 
@@ -42,7 +42,7 @@ export class GestureKeyStabilizer {
   }
 }
 
-function countMatches(history: Array<string | null>, key: string): number {
+function countMatches(history: Array<string | null>, key: string | null): number {
   return history.filter((entry) => entry === key).length;
 }
 

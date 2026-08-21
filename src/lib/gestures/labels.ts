@@ -5,6 +5,7 @@ export const GESTURE_LABELS: Record<string, Record<Language, string>> = {
   hse_lift_duo: { en: 'Safe lift (both)', zh: '双人安全搬运' },
   muscle_pose: { en: 'Muscle pose', zh: '展示肌肉' },
   double_thumb_up: { en: 'Double thumbs up', zh: '双手点赞' },
+  double_thumb_up_duo: { en: 'Double thumbs up (both)', zh: '双人点赞' },
   smile: { en: 'Smile', zh: '微笑' },
   infinity_symbol: { en: 'Infinity symbol', zh: '无限符号' },
   hug: { en: 'Hug', zh: '拥抱' },

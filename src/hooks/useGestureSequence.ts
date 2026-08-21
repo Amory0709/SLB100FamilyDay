@@ -100,8 +100,8 @@ export function useGestureSequence(
       return;
     }
 
-    // GRACE PERIOD: If we lose the gesture for less than 350ms, keep the progress frozen instead of resetting
-    if (holdStartRef.current !== null && now - lastCorrectTimeRef.current < 350) {
+    // GRACE PERIOD: If we lose the gesture for less than 480ms, keep the progress frozen instead of resetting
+    if (holdStartRef.current !== null && now - lastCorrectTimeRef.current < 480) {
       return; // Do nothing, just wait out the grace period
     }
 

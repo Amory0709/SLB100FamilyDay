@@ -1,4 +1,4 @@
-import { useEffect, useId, useRef } from 'react';
+import { useEffect, useId, useRef, type RefObject } from 'react';
 import {
   EMPTY_HAND_CURSOR,
   HAND_CURSOR_DWELL_MS,
@@ -14,9 +14,10 @@ const RING_CIRCUMFERENCE = 2 * Math.PI * HAND_CURSOR_RING_RADIUS;
 
 interface HandCursorOverlayProps {
   enabled: boolean;
+  suppressClickRef?: RefObject<boolean>;
 }
 
-export function HandCursorOverlay({ enabled }: HandCursorOverlayProps) {
+export function HandCursorOverlay({ enabled, suppressClickRef }: HandCursorOverlayProps) {
   const gradientId = useId();
   const filterId = useId();
   const { handCursorRef, setActive, ensureCamera } = useGestureRecognizerContext();
@@ -66,7 +67,7 @@ export function HandCursorOverlay({ enabled }: HandCursorOverlayProps) {
             dwellTargetRef.current = target;
             dwellStartRef.current = now;
             updateProgress(0);
-          } else if (target && now >= clickCooldownRef.current) {
+          } else if (target && now >= clickCooldownRef.current && !suppressClickRef?.current) {
             const elapsed = now - dwellStartRef.current;
             const progress = Math.min(1, elapsed / HAND_CURSOR_DWELL_MS);
             updateProgress(progress);
@@ -96,7 +97,7 @@ export function HandCursorOverlay({ enabled }: HandCursorOverlayProps) {
       cancelAnimationFrame(raf);
       document.body.classList.remove('hand-cursor-active');
     };
-  }, [enabled, handCursorRef]);
+  }, [enabled, handCursorRef, suppressClickRef]);
 
   if (!enabled) return null;
 

@@ -1,5 +1,6 @@
 import { useId } from 'react';
 import { useLanguage } from '@/i18n/LanguageContext';
+import { LanguageSwitcher } from '@/components/LanguageSwitcher';
 import { HAND_CURSOR_DWELL_MS } from '@/lib/gestures/handCursor';
 import { HandCursorFog, HandCursorMark, HAND_CURSOR_FOG_BADGE_SIZE, HAND_CURSOR_FOG_ICON_SIZE } from '@/components/HandCursorMark';
 
@@ -41,6 +42,9 @@ export function HandControlIntroModal({ onContinue }: HandControlIntroModalProps
       aria-labelledby="hand-intro-title"
     >
       <div className="level-card hand-control-intro-card">
+        <div className="hand-intro-language">
+          <LanguageSwitcher />
+        </div>
         <div className="hand-intro-badge" aria-hidden="true">
           <HandCursorFog size={HAND_CURSOR_FOG_BADGE_SIZE} filterId={badgeFogFilterId} animated />
         </div>
@@ -71,6 +75,18 @@ export function HandControlIntroModal({ onContinue }: HandControlIntroModalProps
               />
             </span>
             <span>{t('handIntroStepClick', dwellSeconds)}</span>
+          </li>
+          <li>
+            <span className="hand-intro-step-icon" aria-hidden="true">
+              ☝️
+            </span>
+            <span>{t('handIntroStepRotate')}</span>
+          </li>
+          <li>
+            <span className="hand-intro-step-icon" aria-hidden="true">
+              ✌️
+            </span>
+            <span>{t('handIntroStepZoom')}</span>
           </li>
         </ol>
 

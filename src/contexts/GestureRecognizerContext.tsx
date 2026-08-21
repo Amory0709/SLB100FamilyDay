@@ -27,6 +27,7 @@ import {
   DEFAULT_FACE_BLENDSHAPE_SMOOTHER_OPTIONS,
 } from '@/lib/gestures/faceBlendshapeSmoothing';
 import { GestureKeyStabilizer } from '@/lib/gestures/gestureStabilizer';
+import { DetectedKeysHold } from '@/lib/gestures/detectedKeysHold';
 import {
   EMPTY_HAND_CURSOR,
   landmarkToNormalizedCursor,
@@ -60,6 +61,7 @@ interface GestureRecognizerContextValue {
   videoRef: RefObject<HTMLVideoElement | null>;
   canvasRef: RefObject<HTMLCanvasElement | null>;
   handCursorRef: RefObject<NormalizedHandCursor>;
+  detectedKeysRef: RefObject<string[]>;
   setActive: (consumerId: string, active: boolean) => void;
   ensureCamera: () => Promise<void>;
   status: GestureRecognizerStatus;
@@ -210,6 +212,7 @@ export function GestureRecognizerProvider({ children }: { children: ReactNode })
   const streamRef = useRef<MediaStream | null>(null);
   const activeConsumersRef = useRef(new Set<string>());
   const handCursorRef = useRef<NormalizedHandCursor>(EMPTY_HAND_CURSOR);
+  const detectedKeysRef = useRef<string[]>([]);
   const modelReadyRef = useRef(false);
   const cameraReadyRef = useRef(false);
   const cameraBootRef = useRef<Promise<void> | null>(null);
@@ -220,6 +223,7 @@ export function GestureRecognizerProvider({ children }: { children: ReactNode })
     new MultiFaceBlendshapeSmoother(DEFAULT_FACE_BLENDSHAPE_SMOOTHER_OPTIONS),
   );
   const gestureStabilizerRef = useRef(new GestureKeyStabilizer());
+  const detectedKeysHoldRef = useRef(new DetectedKeysHold());
 
   const [bootStatus, setBootStatus] = useState<GestureRecognizerStatus>('idle');
   const [runtimeStatus, setRuntimeStatus] = useState<GestureRecognizerStatus>('idle');
@@ -253,6 +257,7 @@ export function GestureRecognizerProvider({ children }: { children: ReactNode })
     poseLandmarkSmootherRef.current.reset();
     faceBlendshapeSmootherRef.current.reset();
     gestureStabilizerRef.current.reset();
+    detectedKeysHoldRef.current.reset();
     lastVideoTimeRef.current = -1;
     handCursorRef.current = EMPTY_HAND_CURSOR;
     // Keep frameIndexRef monotonic — MediaPipe VIDEO mode rejects timestamp resets.
@@ -462,10 +467,12 @@ export function GestureRecognizerProvider({ children }: { children: ReactNode })
       });
       const rawPrimary = pickPrimaryKey(rawKeys);
       const gestureKey = gestureStabilizerRef.current.update(rawPrimary);
+      const stabilizedKeys = detectedKeysHoldRef.current.update(rawKeys, performance.now());
 
+      detectedKeysRef.current = stabilizedKeys;
       setFrame({
         gestureKey,
-        detectedKeys: rawKeys,
+        detectedKeys: stabilizedKeys,
         mpCategory,
         score: top?.score ?? 0,
       });
@@ -517,6 +524,7 @@ export function GestureRecognizerProvider({ children }: { children: ReactNode })
 
           if (rawLandmarks.length === 0 && rawPoseLandmarks.length === 0) {
             gestureStabilizerRef.current.reset();
+    detectedKeysHoldRef.current.reset();
           }
 
           const cursorLandmark = pickHandCursorLandmark(smoothedHandLandmarks);
@@ -639,9 +647,12 @@ export function GestureRecognizerProvider({ children }: { children: ReactNode })
       poseLandmarkSmootherRef.current.reset();
       faceBlendshapeSmootherRef.current.reset();
       gestureStabilizerRef.current.reset();
+    detectedKeysHoldRef.current.reset();
       lastVideoTimeRef.current = -1;
       lastMpTimestampRef.current = 0;
       handCursorRef.current = EMPTY_HAND_CURSOR;
+      detectedKeysRef.current = [];
+      detectedKeysHoldRef.current.reset();
       activeConsumersRef.current.clear();
       setFrame(EMPTY_FRAME);
       setBootStatus('idle');
@@ -655,6 +666,7 @@ export function GestureRecognizerProvider({ children }: { children: ReactNode })
     videoRef,
     canvasRef,
     handCursorRef,
+    detectedKeysRef,
     setActive,
     ensureCamera,
     status,

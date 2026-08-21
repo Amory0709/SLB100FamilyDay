@@ -15,6 +15,12 @@ export const GESTURE_GLYPHS: Record<string, ReactNode> = {
       <span>👍</span>
     </span>
   ),
+  double_thumb_up_duo: (
+    <span className="glyph-emoji-dual" aria-hidden="true">
+      <span>👥</span>
+      <span>👍</span>
+    </span>
+  ),
   smile: <span style={{ fontSize: '64px', display: 'block' }}>😊</span>,
   infinity_symbol: <span style={{ fontSize: '64px', display: 'block' }}>∞</span>,
   hug: <span style={{ fontSize: '64px', display: 'block' }}>🤗</span>,

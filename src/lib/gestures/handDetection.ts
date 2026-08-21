@@ -1,5 +1,10 @@
 import type { NormalizedLandmark } from '@mediapipe/tasks-vision';
-import { dist } from '@/lib/gestures/geometry';
+import { dist, mid } from '@/lib/gestures/geometry';
+
+const POSE = {
+  lShoulder: 11,
+  rShoulder: 12,
+} as const;
 
 /** MediaPipe canned gesture names → our levels.json gestureKey values */
 export const MEDIAPIPE_TO_GESTURE_KEY: Record<string, string> = {
@@ -12,6 +17,7 @@ export const CUSTOM_GESTURE_KEYS = new Set([
   'point_diagonal_down',
   'point_to_other',
   'double_thumb_up',
+  'double_thumb_up_duo',
 ]);
 
 function isFingerExtended(
@@ -23,7 +29,7 @@ function isFingerExtended(
   const tipToWrist = dist(lm[tip], lm[0]);
   const pipToWrist = dist(lm[pip], lm[0]);
   const mcpToWrist = dist(lm[mcp], lm[0]);
-  return tipToWrist > pipToWrist * 1.05 && pipToWrist > mcpToWrist * 0.92;
+  return tipToWrist > pipToWrist * 1.02 && pipToWrist > mcpToWrist * 0.88;
 }
 
 function curledFingers(
@@ -50,8 +56,22 @@ function isThumbUp(landmarks: NormalizedLandmark[]): boolean {
   return thumbTip.y < wrist.y + 0.05 || dist(thumbTip, wrist) > dist(landmarks[8], wrist) * 0.7;
 }
 
+function isVictoryPose(landmarks: NormalizedLandmark[]): boolean {
+  if (landmarks.length < 21) return false;
+
+  const indexExtended = isFingerExtended(landmarks, 8, 6, 5);
+  const middleExtended = isFingerExtended(landmarks, 12, 10, 9);
+  const othersCurled = curledFingers(landmarks, [16, 20], [14, 18], [13, 17]);
+
+  return indexExtended && middleExtended && othersCurled;
+}
+
 export function detectCustomGestureKey(landmarks: NormalizedLandmark[]): string | null {
   if (landmarks.length < 21) return null;
+
+  if (isVictoryPose(landmarks)) {
+    return 'two_fingers';
+  }
 
   const indexExtended = isFingerExtended(landmarks, 8, 6, 5);
   const middleExtended = isFingerExtended(landmarks, 12, 10, 9);
@@ -61,14 +81,23 @@ export function detectCustomGestureKey(landmarks: NormalizedLandmark[]): string 
   const indexTip = landmarks[8];
   const thumbTip = landmarks[4];
 
-  if (indexExtended && !middleExtended && curledFingers(landmarks, [12, 16, 20], [10, 14, 18], [9, 13, 17])) {
+  if (
+    indexExtended &&
+    !middleExtended &&
+    curledFingers(landmarks, [12, 16, 20], [10, 14, 18], [9, 13, 17])
+  ) {
     const dx = indexTip.x - wrist.x;
     const dy = indexTip.y - wrist.y;
-    if (Math.abs(dx) > 0.12 && Math.abs(dy) < Math.abs(dx) * 0.85) {
-      return 'point_to_other';
-    }
-    if (dy > 0.08 && Math.abs(dx) < 0.1) {
-      return 'point_diagonal_down';
+    const reach = Math.hypot(dx, dy);
+
+    if (reach > 0.055) {
+      const horizRatio = Math.abs(dx) / reach;
+      if (horizRatio > 0.48) {
+        return 'point_to_other';
+      }
+      if (dy > 0.06 && horizRatio < 0.45) {
+        return 'point_diagonal_down';
+      }
     }
   }
 
@@ -94,6 +123,7 @@ export function resolveHandGestureKey(
   if (landmarks?.length) {
     const custom = detectCustomGestureKey(landmarks);
     if (custom) return custom;
+    if (isVictoryPose(landmarks)) return 'two_fingers';
     if (isThumbUp(landmarks)) return 'thumb_up';
   }
 
@@ -119,4 +149,41 @@ export function detectHandKeys(
   if (thumbCount >= 2) keys.push('double_thumb_up');
 
   return keys;
+}
+
+function sortPosesByX(poses: NormalizedLandmark[][]): NormalizedLandmark[][] {
+  return [...poses].sort((a, b) => {
+    const ax = (a[POSE.lShoulder].x + a[POSE.rShoulder].x) / 2;
+    const bx = (b[POSE.lShoulder].x + b[POSE.rShoulder].x) / 2;
+    return ax - bx;
+  });
+}
+
+/** Couple mode: two tracked players, each with at least one thumb-up hand. */
+export function detectDoubleThumbUpDuo(
+  handLandmarks: NormalizedLandmark[][],
+  poseLandmarks: NormalizedLandmark[][],
+): boolean {
+  if (poseLandmarks.length < 2) return false;
+
+  const thumbHands = handLandmarks.filter((lm) => isThumbUp(lm));
+  if (thumbHands.length < 2) return false;
+
+  const [leftPerson, rightPerson] = sortPosesByX(poseLandmarks);
+  const leftMid = mid(leftPerson[POSE.lShoulder], leftPerson[POSE.rShoulder]);
+  const rightMid = mid(rightPerson[POSE.lShoulder], rightPerson[POSE.rShoulder]);
+
+  let leftHasThumb = false;
+  let rightHasThumb = false;
+
+  for (const hand of thumbHands) {
+    const wrist = hand[0];
+    if (dist(wrist, leftMid) <= dist(wrist, rightMid)) {
+      leftHasThumb = true;
+    } else {
+      rightHasThumb = true;
+    }
+  }
+
+  return leftHasThumb && rightHasThumb;
 }

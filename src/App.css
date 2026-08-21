@@ -13,6 +13,18 @@
   letter-spacing: 0.5px;
 }
 
+.hand-model-hint[data-mode='rotate'],
+.hand-model-hint[data-mode='zoom'] {
+  color: #fff;
+  background: rgb(0 20 200 / 88%);
+  padding: 8px 12px;
+  border-radius: 999px;
+  font-size: 12px;
+  letter-spacing: 0.2px;
+  max-width: min(92vw, 520px);
+  line-height: 1.35;
+}
+
 #slb-panel {
   position: fixed;
   top: 0;
@@ -792,7 +804,27 @@ body.hand-cursor-active {
 }
 
 .hand-control-intro-card {
+  position: relative;
   max-width: 560px;
+}
+
+.hand-intro-language {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+}
+
+.hand-control-intro-card .language-switcher {
+  background: rgba(0, 20, 200, 0.08);
+}
+
+.hand-control-intro-card .language-switcher-btn {
+  color: #0014c8;
+}
+
+.hand-control-intro-card .language-switcher-btn.active {
+  background: #0014c8;
+  color: #fff;
 }
 
 .hand-intro-badge {

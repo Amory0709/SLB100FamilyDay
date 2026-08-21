@@ -30,7 +30,10 @@ export interface GameEngine {
   playOutroCelebration(): void;
   completeLevel(levelId: number): boolean;
   resetLevelProgress(): void;
+  returnToLobby(): void;
   applyPanelAwareCamera(panelVisible: boolean, panelWidth: number): void;
+  applyHandOrbit(deltaAzimuth: number, deltaPolar: number): boolean;
+  applyHandZoom(deltaDistance: number): boolean;
   isModelReady(): boolean;
   getProgress(): number[];
 }
@@ -783,11 +786,22 @@ export function createGameEngine(
 
   function resetLevelProgress() {
     cancelCameraFly();
-    setAutoRotate(false);
     cancelLevelAnimations();
     [...completedLevels].forEach((id) => restoreLevelZone(id));
     completedLevels.clear();
     levelSlots.forEach((_, i) => updateLevelMarkerState(i));
+  }
+
+  function returnToLobby() {
+    resetLevelProgress();
+    if (!model) {
+      setAutoRotate(!DEV_MODE);
+      return;
+    }
+    flyToView(applyModelOffset(P1_CAM), applyModelOffset(P1_TGT), {
+      duration: 1400,
+      onComplete: () => setAutoRotate(!DEV_MODE),
+    });
   }
 
   function applySavedLevelColors() {
@@ -836,6 +850,59 @@ export function createGameEngine(
     gui.controllersRecursive().forEach((c) => {
       if (c.property === 'autoRotate') c.updateDisplay();
     });
+  }
+
+  let handControlActive = false;
+  let handControlIdleTimer: ReturnType<typeof window.setTimeout> | null = null;
+  const handOrbitOffset = new THREE.Vector3();
+  const handOrbitSpherical = new THREE.Spherical();
+  const HAND_CONTROL_IDLE_MS = 5000;
+
+  function scheduleHandControlIdle() {
+    if (handControlIdleTimer) window.clearTimeout(handControlIdleTimer);
+    handControlIdleTimer = window.setTimeout(() => {
+      handControlActive = false;
+      handControlIdleTimer = null;
+      if (!cameraFlyAnim && !DEV_MODE) setAutoRotate(true);
+    }, HAND_CONTROL_IDLE_MS);
+  }
+
+  function markHandControlActive() {
+    handControlActive = true;
+    setAutoRotate(false);
+    scheduleHandControlIdle();
+  }
+
+  function applyHandOrbit(deltaAzimuth: number, deltaPolar: number): boolean {
+    if (cameraFlyAnim || !model) return false;
+    markHandControlActive();
+
+    handOrbitOffset.subVectors(camera.position, controls.target);
+    handOrbitSpherical.setFromVector3(handOrbitOffset);
+    handOrbitSpherical.theta -= deltaAzimuth;
+    handOrbitSpherical.phi = THREE.MathUtils.clamp(
+      handOrbitSpherical.phi - deltaPolar,
+      0.05,
+      Math.PI - 0.05,
+    );
+    handOrbitOffset.setFromSpherical(handOrbitSpherical);
+    camera.position.copy(controls.target).add(handOrbitOffset);
+    camera.lookAt(controls.target);
+    return true;
+  }
+
+  function applyHandZoom(deltaDistance: number): boolean {
+    if (cameraFlyAnim || !model) return false;
+    markHandControlActive();
+
+    handOrbitOffset.subVectors(camera.position, controls.target);
+    const dist = handOrbitOffset.length();
+    // Multiplicative zoom — feels closer to scroll-wheel / pinch behavior.
+    const factor = Math.exp(-deltaDistance);
+    const nextDist = THREE.MathUtils.clamp(dist * factor, controls.minDistance, controls.maxDistance);
+    handOrbitOffset.setLength(nextDist);
+    camera.position.copy(controls.target).add(handOrbitOffset);
+    return true;
   }
 
   function cancelCameraFly() {
@@ -1470,7 +1537,7 @@ export function createGameEngine(
     if (!flying) controls.update();
     animateLevelMarkers(now);
     updateLevelAnimations(now);
-    if (params.autoRotate && model) {
+    if (params.autoRotate && model && !handControlActive) {
       model.rotation.y += dt * 0.06;
     }
     renderer.render(scene, camera);
@@ -1513,7 +1580,10 @@ export function createGameEngine(
     playOutroCelebration,
     completeLevel,
     resetLevelProgress,
+    returnToLobby,
     applyPanelAwareCamera,
+    applyHandOrbit,
+    applyHandZoom,
     isModelReady: () => !!model,
     getProgress: () => [...completedLevels].sort((a, b) => a - b),
   };

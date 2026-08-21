@@ -1,6 +1,6 @@
 import type { Classifications, NormalizedLandmark } from '@mediapipe/tasks-vision';
 import { detectFaceKeys } from '@/lib/gestures/faceDetection';
-import { detectHandKeys } from '@/lib/gestures/handDetection';
+import { detectDoubleThumbUpDuo, detectHandKeys } from '@/lib/gestures/handDetection';
 import { detectPoseKeys } from '@/lib/gestures/poseDetection';
 
 export { MEDIAPIPE_TO_GESTURE_KEY, CUSTOM_GESTURE_KEYS } from '@/lib/gestures/handDetection';
@@ -18,6 +18,9 @@ export function detectAllKeys(input: DetectionInput): string[] {
     ...detectPoseKeys(input.poseLandmarks),
     ...detectFaceKeys(input.faceBlendshapes),
   ]);
+  if (detectDoubleThumbUpDuo(input.handLandmarks, input.poseLandmarks)) {
+    keys.add('double_thumb_up_duo');
+  }
   return [...keys];
 }
 
@@ -29,6 +32,7 @@ const DISPLAY_PRIORITY = [
   'hse_lift',
   'muscle_pose',
   'smile',
+  'double_thumb_up_duo',
   'double_thumb_up',
   'thumb_up',
   'half_thumb_up',

@@ -148,38 +148,36 @@ export function detectInfinitySymbol(poses: NormalizedLandmark[][]): boolean {
   const outerR = rightPerson[POSE.rWrist];
 
   if (
-    !allVisible(leftPerson, [POSE.lWrist, POSE.rWrist]) ||
-    !allVisible(rightPerson, [POSE.lWrist, POSE.rWrist])
+    !allVisible(leftPerson, [POSE.lWrist, POSE.rWrist], 0.35) ||
+    !allVisible(rightPerson, [POSE.lWrist, POSE.rWrist], 0.35)
   ) {
     return false;
   }
 
   const innerDist = dist(innerL, innerR);
-  const innerMeet = innerDist < 0.16;
-  const innerHeightMatch = Math.abs(innerL.y - innerR.y) < 0.1;
-  const innerRaised = innerL.y < leftPerson[POSE.lHip].y && innerR.y < rightPerson[POSE.rHip].y;
+  const outerDist = dist(outerL, outerR);
 
-  const shoulderMidL = mid(leftPerson[POSE.lShoulder], leftPerson[POSE.rShoulder]);
-  const shoulderMidR = mid(rightPerson[POSE.lShoulder], rightPerson[POSE.rShoulder]);
-  const centerX = (shoulderMidL.x + shoulderMidR.x) / 2;
+  const innerMeet = innerDist < 0.26;
+  const innerHeightMatch = Math.abs(innerL.y - innerR.y) < 0.16;
+  const innerRaised =
+    innerL.y < leftPerson[POSE.lHip].y + 0.06 && innerR.y < rightPerson[POSE.rHip].y + 0.06;
 
-  const outerSpread =
-    outerL.x < centerX - 0.06 &&
-    outerR.x > centerX + 0.06 &&
-    dist(outerL, outerR) > innerDist * 1.6;
-  const outerHeightMatch = Math.abs(outerL.y - outerR.y) < 0.14;
+  const outerWider = outerDist > innerDist * 1.15;
+  const outerApart = outerL.x < outerR.x - 0.04;
+  const outerHeightMatch = Math.abs(outerL.y - outerR.y) < 0.2;
 
-  const elbowsRaised =
-    leftPerson[POSE.rElbow].y < leftPerson[POSE.lHip].y &&
-    rightPerson[POSE.lElbow].y < rightPerson[POSE.rHip].y;
+  const armsRaised =
+    leftPerson[POSE.rElbow].y < leftPerson[POSE.lHip].y + 0.1 &&
+    rightPerson[POSE.lElbow].y < rightPerson[POSE.rHip].y + 0.1;
 
   return (
     innerMeet &&
     innerHeightMatch &&
     innerRaised &&
-    outerSpread &&
+    outerWider &&
+    outerApart &&
     outerHeightMatch &&
-    elbowsRaised
+    armsRaised
   );
 }
 

@@ -132,16 +132,16 @@
             "zh": "一起庆祝! 两位伙伴同时双手点赞,精彩开局。"
           },
           "task": {
-            "en": "Both players show thumbs up with both hands. Hold for 2 seconds.",
-            "zh": "两位玩家同时双手竖起大拇指。保持 2 秒。"
+            "en": "Both players show thumbs up at the same time. Hold for 2 seconds.",
+            "zh": "两位玩家同时竖起大拇指。保持 2 秒。"
           },
           "taskIcon": "👍",
           "completionType": "gesture",
           "gestures": [
             {
               "word": { "en": "Double thumbs up", "zh": "双手点赞" },
-              "gestureKey": "double_thumb_up",
-              "hint": { "en": "Both hands 👍👍 each", "zh": "各举双手 👍👍" }
+              "gestureKey": "double_thumb_up_duo",
+              "hint": { "en": "Both players thumbs up 👍", "zh": "两位玩家同时点赞 👍" }
             }
           ],
           "reward": { "en": "Celebration started!", "zh": "庆祝开始!" },
