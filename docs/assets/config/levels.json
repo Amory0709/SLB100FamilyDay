@@ -128,20 +128,20 @@
           "id": 1,
           "title": { "en": "Lv1 — Double Thumbs Up", "zh": "Lv1 — 双手点赞 (Double Thumbs Up)" },
           "intro": {
-            "en": "Celebrate together! Both partners show double thumbs up to start strong.",
-            "zh": "一起庆祝! 两位伙伴同时双手点赞,精彩开局。"
+            "en": "Celebrate together! Both partners show both hands thumbs up — four thumbs in total.",
+            "zh": "一起庆祝! 两位伙伴各双手点赞，一共四个赞。"
           },
           "task": {
-            "en": "Both players show thumbs up at the same time. Hold for 2 seconds.",
-            "zh": "两位玩家同时竖起大拇指。保持 2 秒。"
+            "en": "Both players: both hands thumbs up (4 total). Both bodies in frame. Hold for 2 seconds.",
+            "zh": "两人各双手点赞，共四个赞，身体都要入镜。保持 2 秒。"
           },
           "taskIcon": "👍",
           "completionType": "gesture",
           "gestures": [
             {
-              "word": { "en": "Double thumbs up", "zh": "双手点赞" },
+              "word": { "en": "Four thumbs up", "zh": "四个赞" },
               "gestureKey": "double_thumb_up_duo",
-              "hint": { "en": "Both players thumbs up 👍", "zh": "两位玩家同时点赞 👍" }
+              "hint": { "en": "Each player: both hands 👍👍", "zh": "每人双手 👍👍" }
             }
           ],
           "reward": { "en": "Celebration started!", "zh": "庆祝开始!" },
@@ -151,22 +151,22 @@
           "id": 2,
           "title": { "en": "Lv2 — Infinity Symbol", "zh": "Lv2 — 无限符号 (Infinity Symbol)" },
           "intro": {
-            "en": "Stand side by side. Touch your inner hands together at the center while your outer arms curve outward — forming the ∞ symbol together.",
-            "zh": "并排站立。内侧手在中心相触,外侧手臂向外弯曲 — 一起组成 ∞ 符号。"
+            "en": "Stand side by side, both in frame. Each player uses one hand to make an OK circle — two circles side by side like ∞.",
+            "zh": "并排站立，两人都要入镜。每人用一只手拇指和食指比圈，两个圈并排就像 ∞ 符号。"
           },
           "task": {
-            "en": "Form an infinity symbol with your arms together. Inner wrists meet at center, outer arms spread out. Hold for 2 seconds.",
-            "zh": "用手臂一起组成无限符号 ∞。内侧手腕在中心相触,外侧手臂展开。保持 2 秒。"
+            "en": "Both players: one OK circle hand each. Both bodies must be visible. Hold for 2 seconds.",
+            "zh": "两人各一只手比圈，身体都要入镜。保持 2 秒。"
           },
-          "taskIcon": "∞",
+          "taskIcon": "👌",
           "completionType": "gesture",
           "gestures": [
             {
-              "word": { "en": "Infinity symbol", "zh": "无限符号" },
+              "word": { "en": "Hand circle (both)", "zh": "双人比圈" },
               "gestureKey": "infinity_symbol",
               "hint": {
-                "en": "Inner hands meet · outer arms out",
-                "zh": "内侧手相触 · 外侧手展开"
+                "en": "Each player: one hand OK circle 👌",
+                "zh": "每人一只手比圈 👌"
               }
             }
           ],
@@ -181,8 +181,8 @@
             "zh": "Family Day 重在联结。给伙伴一个温暖的拥抱!"
           },
           "task": {
-            "en": "Stand close and hug each other. Hold for 2 seconds.",
-            "zh": "靠近并拥抱彼此。保持 2 秒。"
+            "en": "Stand close and hug each other — upper body in frame. Hold for 2 seconds.",
+            "zh": "靠近拥抱，上半身入镜。保持 2 秒。"
           },
           "taskIcon": "🤗",
           "completionType": "gesture",
@@ -190,7 +190,7 @@
             {
               "word": { "en": "Hug", "zh": "拥抱" },
               "gestureKey": "hug",
-              "hint": { "en": "Wrap arms around each other", "zh": "双臂环绕彼此" }
+              "hint": { "en": "Wrap arms around each other · chest in frame", "zh": "双臂环绕 · 胸口入镜" }
             }
           ],
           "reward": { "en": "Warm hug unlocked!", "zh": "温暖拥抱解锁!" },
