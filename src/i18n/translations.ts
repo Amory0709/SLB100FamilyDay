@@ -53,6 +53,17 @@ const en = {
   handIntroContinue: 'Got it, let\'s go →',
   handIntroPracticeHint: (seconds: string) =>
     `Try it now: point at the button above and hold for ${seconds} seconds.`,
+  duoCheckBodies: (n: number, required: number) => `Both players in frame (${n}/${required})`,
+  duoCheckThumbsTotal: (n: number, required: number) => `Thumbs up (${n}/${required})`,
+  duoCheckPlayerThumbs: (n: number, required: number) => `Both hands thumbs up (${n}/${required})`,
+  duoCheckCirclesTotal: (n: number, required: number) => `Circle hands (${n}/${required})`,
+  duoCheckPlayerCircle: (n: number, required: number) => `Circle hand (${n}/${required})`,
+  duoCheckHugClose: 'Stand close — shoulders nearly touching',
+  duoCheckHugLeftArm: 'Left player — arms around partner',
+  duoCheckHugRightArm: 'Right player — arms around partner',
+  duoCheckReady: 'All set — hold steady for 2 seconds…',
+  duoPlayerLeft: 'Left',
+  duoPlayerRight: 'Right',
 } as const;
 
 const zh = {
@@ -107,6 +118,17 @@ const zh = {
   handIntroCameraTip: '请在浏览器提示时允许摄像头权限，并确保摄像头能看清你的手。',
   handIntroContinue: '明白了，开始 →',
   handIntroPracticeHint: (seconds: string) => `现在就试试：指向上方按钮并停留 ${seconds} 秒。`,
+  duoCheckBodies: (n: number, required: number) => `两位玩家入镜 (${n}/${required} 人)`,
+  duoCheckThumbsTotal: (n: number, required: number) => `点赞总数 (${n}/${required})`,
+  duoCheckPlayerThumbs: (n: number, required: number) => `双手点赞 (${n}/${required})`,
+  duoCheckCirclesTotal: (n: number, required: number) => `比圈总数 (${n}/${required})`,
+  duoCheckPlayerCircle: (n: number, required: number) => `比圈 (${n}/${required})`,
+  duoCheckHugClose: '靠近 — 肩膀几乎贴在一起',
+  duoCheckHugLeftArm: '左边 — 双臂环住对方',
+  duoCheckHugRightArm: '右边 — 双臂环住对方',
+  duoCheckReady: '已全部满足 — 保持 2 秒…',
+  duoPlayerLeft: '左边',
+  duoPlayerRight: '右边',
 } as const;
 
 export type TranslationKey = keyof typeof en;

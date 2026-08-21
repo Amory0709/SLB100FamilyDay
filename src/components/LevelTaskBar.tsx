@@ -6,6 +6,7 @@ import { useGestureRecognizer } from '@/hooks/useGestureRecognizer';
 import { useGestureSequence, type GestureStepStatus } from '@/hooks/useGestureSequence';
 import { useLanguage } from '@/i18n/LanguageContext';
 import { GesturePreviewCanvas } from '@/contexts/GestureRecognizerContext';
+import { DuoGestureChecklist, isDuoChecklistGesture } from '@/components/DuoGestureChecklist';
 
 interface LevelTaskBarProps {
   level: LevelConfig;
@@ -49,6 +50,10 @@ export function LevelTaskBar({ level, onComplete }: LevelTaskBarProps) {
     }
   }, [sequence.isComplete, useRecognition, onComplete]);
 
+  const expectedGestureKey = gestures[sequence.currentIndex]?.gestureKey ?? gestures[0]?.gestureKey;
+  const showDuoChecklist =
+    useRecognition && expectedGestureKey && isDuoChecklistGesture(expectedGestureKey) && frame.duoMetrics;
+
   return (
     <div
       className="level-taskbar"
@@ -60,8 +65,8 @@ export function LevelTaskBar({ level, onComplete }: LevelTaskBarProps) {
 
       <div className="task-header">
         <div className="task-icon">
-          {level.gestures?.[0]?.gestureKey === 'muscle_pose'
-            ? GESTURE_GLYPHS.muscle_pose
+          {expectedGestureKey && GESTURE_GLYPHS[expectedGestureKey]
+            ? GESTURE_GLYPHS[expectedGestureKey]
             : (level.taskIcon ?? '🎯')}
         </div>
         <div className="task-header-text">
@@ -101,27 +106,33 @@ export function LevelTaskBar({ level, onComplete }: LevelTaskBarProps) {
       )}
 
       <div className="task-progress-section">
+        {showDuoChecklist && (
+          <DuoGestureChecklist
+            gestureKey={expectedGestureKey!}
+            metrics={frame.duoMetrics!}
+            holdProgress={smoothProgress}
+          />
+        )}
+
         <div className="gesture-hint-text">
           {useRecognition ? t('gestureSequenceHint') : ''}
         </div>
 
         {gestures.length === 0 ? (
           <div className="task-gestures-empty">{t('noGesturesConfigured')}</div>
-        ) : (
-          <>
-            <div className="task-gestures center-gestures" aria-label="Gesture sequence">
-              {gestures.map((g, idx) => (
-                <GestureCard
-                  key={`${g.word}-${idx}`}
-                  gesture={g}
-                  index={idx}
-                  status={sequence.steps[idx]?.status ?? 'pending'}
-                  holdProgress={sequence.steps[idx]?.status === 'active' ? smoothProgress : 0}
-                  wrongFlash={sequence.wrongFlash && sequence.currentIndex === idx}
-                />
-              ))}
-            </div>
-          </>
+        ) : showDuoChecklist ? null : (
+          <div className="task-gestures center-gestures" aria-label="Gesture sequence">
+            {gestures.map((g, idx) => (
+              <GestureCard
+                key={`${g.word}-${idx}`}
+                gesture={g}
+                index={idx}
+                status={sequence.steps[idx]?.status ?? 'pending'}
+                holdProgress={sequence.steps[idx]?.status === 'active' ? smoothProgress : 0}
+                wrongFlash={sequence.wrongFlash && sequence.currentIndex === idx}
+              />
+            ))}
+          </div>
         )}
       </div>
 

@@ -1,10 +1,16 @@
 import type { NormalizedLandmark } from '@mediapipe/tasks-vision';
-import { dist, mid } from '@/lib/gestures/geometry';
-
-const POSE = {
-  lShoulder: 11,
-  rShoulder: 12,
-} as const;
+import { dist } from '@/lib/gestures/geometry';
+import {
+  countHandsPerPlayer,
+  hasTwoPlayersInFrame,
+} from '@/lib/gestures/playerTracking';
+import {
+  DUO_CIRCLES_PER_PLAYER,
+  DUO_PLAYER_COUNT,
+  DUO_THUMBS_PER_PLAYER,
+  DUO_TOTAL_CIRCLES,
+  DUO_TOTAL_THUMBS,
+} from '@/lib/gestures/duoConstants';
 
 /** MediaPipe canned gesture names → our levels.json gestureKey values */
 export const MEDIAPIPE_TO_GESTURE_KEY: Record<string, string> = {
@@ -41,7 +47,22 @@ function curledFingers(
   return tips.every((tip, i) => !isFingerExtended(lm, tip, pips[i], mcps[i]));
 }
 
-function isThumbUp(landmarks: NormalizedLandmark[]): boolean {
+export function isHandCircle(landmarks: NormalizedLandmark[]): boolean {
+  if (landmarks.length < 21) return false;
+
+  const wrist = landmarks[0];
+  const thumbTip = landmarks[4];
+  const indexTip = landmarks[8];
+
+  if (dist(thumbTip, indexTip) > 0.07) return false;
+  if (isFingerExtended(landmarks, 8, 6, 5)) return false;
+
+  const thumbReach = dist(thumbTip, wrist);
+  const indexReach = dist(indexTip, wrist);
+  return thumbReach > 0.05 && indexReach > 0.045;
+}
+
+export function isThumbUp(landmarks: NormalizedLandmark[]): boolean {
   if (landmarks.length < 21) return false;
   const thumbExtended = isFingerExtended(landmarks, 4, 3, 2);
   const othersCurled = curledFingers(
@@ -143,6 +164,7 @@ export function detectHandKeys(
   allLandmarks.forEach((landmarks, i) => {
     const key = resolveHandGestureKey(mpCategories[i], landmarks);
     if (key) keys.push(key);
+    if (isHandCircle(landmarks)) keys.push('hand_circle');
   });
 
   const thumbCount = allLandmarks.filter((lm) => isThumbUp(lm)).length;
@@ -151,39 +173,63 @@ export function detectHandKeys(
   return keys;
 }
 
-function sortPosesByX(poses: NormalizedLandmark[][]): NormalizedLandmark[][] {
-  return [...poses].sort((a, b) => {
-    const ax = (a[POSE.lShoulder].x + a[POSE.rShoulder].x) / 2;
-    const bx = (b[POSE.lShoulder].x + b[POSE.rShoulder].x) / 2;
-    return ax - bx;
-  });
+function playerHandsValid(
+  counts: [number, number],
+  minPerPlayer: number,
+  maxPerPlayer: number,
+): boolean {
+  const [left, right] = counts;
+  if (left < minPerPlayer || right < minPerPlayer) return false;
+  if (left > maxPerPlayer || right > maxPerPlayer) return false;
+  if (left >= minPerPlayer * DUO_PLAYER_COUNT && right === 0) return false;
+  if (right >= minPerPlayer * DUO_PLAYER_COUNT && left === 0) return false;
+  return true;
 }
 
-/** Couple mode: two tracked players, each with at least one thumb-up hand. */
+/** Couple mode: two players, each with both hands thumbs up (4 total). */
 export function detectDoubleThumbUpDuo(
   handLandmarks: NormalizedLandmark[][],
   poseLandmarks: NormalizedLandmark[][],
+  faceLandmarks: NormalizedLandmark[][] = [],
 ): boolean {
-  if (poseLandmarks.length < 2) return false;
+  if (!hasTwoPlayersInFrame(poseLandmarks, faceLandmarks)) return false;
 
   const thumbHands = handLandmarks.filter((lm) => isThumbUp(lm));
-  if (thumbHands.length < 2) return false;
+  if (thumbHands.length < DUO_TOTAL_THUMBS) return false;
 
-  const [leftPerson, rightPerson] = sortPosesByX(poseLandmarks);
-  const leftMid = mid(leftPerson[POSE.lShoulder], leftPerson[POSE.rShoulder]);
-  const rightMid = mid(rightPerson[POSE.lShoulder], rightPerson[POSE.rShoulder]);
+  return playerHandsValid(
+    countHandsPerPlayer(thumbHands, poseLandmarks, faceLandmarks, {
+      maxPerPlayer: DUO_THUMBS_PER_PLAYER,
+    }),
+    DUO_THUMBS_PER_PLAYER,
+    DUO_THUMBS_PER_PLAYER,
+  );
+}
 
-  let leftHasThumb = false;
-  let rightHasThumb = false;
+function assignCircleHandsToPoses(
+  circleHands: NormalizedLandmark[][],
+  poseLandmarks: NormalizedLandmark[][],
+  faceLandmarks: NormalizedLandmark[][] = [],
+): boolean {
+  if (circleHands.length < DUO_TOTAL_CIRCLES) return false;
+  if (!hasTwoPlayersInFrame(poseLandmarks, faceLandmarks)) return false;
+  return playerHandsValid(
+    countHandsPerPlayer(circleHands, poseLandmarks, faceLandmarks, {
+      maxPerPlayer: DUO_CIRCLES_PER_PLAYER,
+    }),
+    DUO_CIRCLES_PER_PLAYER,
+    DUO_CIRCLES_PER_PLAYER,
+  );
+}
 
-  for (const hand of thumbHands) {
-    const wrist = hand[0];
-    if (dist(wrist, leftMid) <= dist(wrist, rightMid)) {
-      leftHasThumb = true;
-    } else {
-      rightHasThumb = true;
-    }
-  }
+/** Couple mode: two tracked players, each with at least one circle hand. */
+export function detectInfinitySymbolDuo(
+  handLandmarks: NormalizedLandmark[][],
+  poseLandmarks: NormalizedLandmark[][],
+  faceLandmarks: NormalizedLandmark[][] = [],
+): boolean {
+  const circleHands = handLandmarks.filter((lm) => isHandCircle(lm));
+  if (circleHands.length < DUO_TOTAL_CIRCLES) return false;
 
-  return leftHasThumb && rightHasThumb;
+  return assignCircleHandsToPoses(circleHands, poseLandmarks, faceLandmarks);
 }

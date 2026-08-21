@@ -430,4 +430,19 @@ export class MultiPoseLandmarkSmoother extends MultiLandmarkSmoother {
   constructor(options: LandmarkSmootherOptions = {}) {
     super(POSE_SKELETON, { ...DEFAULT_POSE_LANDMARK_SMOOTHER_OPTIONS, ...options });
   }
+
+  smooth(allLandmarks: NormalizedLandmark[][], tMs: number): NormalizedLandmark[][] {
+    const sorted = [...allLandmarks].sort((a, b) => poseAnchorX(a) - poseAnchorX(b));
+    return super.smooth(sorted, tMs);
+  }
+}
+
+function poseAnchorX(landmarks: NormalizedLandmark[]): number {
+  if (landmarks.length < 13) return 0;
+  const ls = landmarks[11];
+  const rs = landmarks[12];
+  if ((ls.visibility ?? 1) < 0.15 && (rs.visibility ?? 1) < 0.15) {
+    return landmarks[0]?.x ?? 0;
+  }
+  return (ls.x + rs.x) / 2;
 }

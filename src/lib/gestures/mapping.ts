@@ -1,6 +1,10 @@
 import type { Classifications, NormalizedLandmark } from '@mediapipe/tasks-vision';
 import { detectFaceKeys } from '@/lib/gestures/faceDetection';
-import { detectDoubleThumbUpDuo, detectHandKeys } from '@/lib/gestures/handDetection';
+import {
+  detectDoubleThumbUpDuo,
+  detectHandKeys,
+  detectInfinitySymbolDuo,
+} from '@/lib/gestures/handDetection';
 import { detectPoseKeys } from '@/lib/gestures/poseDetection';
 
 export { MEDIAPIPE_TO_GESTURE_KEY, CUSTOM_GESTURE_KEYS } from '@/lib/gestures/handDetection';
@@ -9,17 +13,21 @@ export interface DetectionInput {
   handLandmarks: NormalizedLandmark[][];
   handCategories: (string | undefined)[];
   poseLandmarks: NormalizedLandmark[][];
+  faceLandmarks: NormalizedLandmark[][];
   faceBlendshapes: Classifications[] | undefined;
 }
 
 export function detectAllKeys(input: DetectionInput): string[] {
   const keys = new Set<string>([
     ...detectHandKeys(input.handLandmarks, input.handCategories),
-    ...detectPoseKeys(input.poseLandmarks),
+    ...detectPoseKeys(input.poseLandmarks, input.handLandmarks),
     ...detectFaceKeys(input.faceBlendshapes),
   ]);
-  if (detectDoubleThumbUpDuo(input.handLandmarks, input.poseLandmarks)) {
+  if (detectDoubleThumbUpDuo(input.handLandmarks, input.poseLandmarks, input.faceLandmarks)) {
     keys.add('double_thumb_up_duo');
+  }
+  if (detectInfinitySymbolDuo(input.handLandmarks, input.poseLandmarks, input.faceLandmarks)) {
+    keys.add('infinity_symbol');
   }
   return [...keys];
 }
@@ -39,6 +47,7 @@ const DISPLAY_PRIORITY = [
   'two_fingers',
   'point_to_other',
   'point_diagonal_down',
+  'hand_circle',
 ] as const;
 
 export function pickPrimaryKey(keys: string[]): string | null {

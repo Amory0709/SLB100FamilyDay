@@ -100,6 +100,30 @@ export function useGestureSequence(
       return;
     }
 
+    // Duo levels: partial hand matches are progress, not wrong gestures.
+    if (expectedKey === 'infinity_symbol' && detectedKeys.includes('hand_circle')) {
+      setState((prev) => ({
+        ...prev,
+        holdProgress: 0,
+        detectedKey: 'hand_circle',
+        wrongFlash: false,
+      }));
+      return;
+    }
+
+    if (
+      expectedKey === 'double_thumb_up_duo' &&
+      (detectedKeys.includes('thumb_up') || detectedKeys.includes('double_thumb_up'))
+    ) {
+      setState((prev) => ({
+        ...prev,
+        holdProgress: 0,
+        detectedKey: detectedKeys.includes('double_thumb_up') ? 'double_thumb_up' : 'thumb_up',
+        wrongFlash: false,
+      }));
+      return;
+    }
+
     // GRACE PERIOD: If we lose the gesture for less than 480ms, keep the progress frozen instead of resetting
     if (holdStartRef.current !== null && now - lastCorrectTimeRef.current < 480) {
       return; // Do nothing, just wait out the grace period

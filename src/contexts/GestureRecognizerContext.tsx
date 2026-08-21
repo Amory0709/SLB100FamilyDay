@@ -17,6 +17,9 @@ import {
   type NormalizedLandmark,
 } from '@mediapipe/tasks-vision';
 import { detectAllKeys, pickPrimaryKey } from '@/lib/gestures/mapping';
+import { DUO_PLAYER_COUNT, POSE_LANDMARKER_NUM_POSES } from '@/lib/gestures/duoConstants';
+import { detectDuoPoseLandmarks } from '@/lib/gestures/poseRegionDetection';
+import { computeDuoHandMetrics, type DuoHandMetrics } from '@/lib/gestures/duoHandMetrics';
 import {
   MultiHandLandmarkSmoother,
   MultiPoseLandmarkSmoother,
@@ -42,7 +45,7 @@ const WASM_URL = 'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.20/w
 const MODEL_URL =
   'https://storage.googleapis.com/mediapipe-models/gesture_recognizer/gesture_recognizer/float16/1/gesture_recognizer.task';
 const POSE_MODEL_URL =
-  'https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_lite/float16/1/pose_landmarker_lite.task';
+  'https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_heavy/float16/1/pose_landmarker_heavy.task';
 const FACE_MODEL_URL =
   'https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task';
 const CAMERA_RETRIES = 3;
@@ -55,6 +58,7 @@ export interface GestureFrame {
   detectedKeys: string[];
   mpCategory: string | null;
   score: number;
+  duoMetrics: DuoHandMetrics | null;
 }
 
 interface GestureRecognizerContextValue {
@@ -77,6 +81,7 @@ const EMPTY_FRAME: GestureFrame = {
   detectedKeys: [],
   mpCategory: null,
   score: 0,
+  duoMetrics: null,
 };
 
 function sleep(ms: number): Promise<void> {
@@ -197,6 +202,7 @@ export function GestureRecognizerProvider({ children }: { children: ReactNode })
 
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const poseCropCanvasRef = useRef<HTMLCanvasElement | null>(null);
   const recognizerRef = useRef<GestureRecognizer | null>(null);
   const poseLandmarkerRef = useRef<PoseLandmarker | null>(null);
   const faceLandmarkerRef = useRef<FaceLandmarker | null>(null);
@@ -453,6 +459,7 @@ export function GestureRecognizerProvider({ children }: { children: ReactNode })
       result: GestureRecognizerResult,
       smoothedHandLandmarks: NormalizedLandmark[][],
       poseLandmarks: NormalizedLandmark[][],
+      faceLandmarks: NormalizedLandmark[][],
       faceBlendshapes: ReturnType<FaceLandmarker['detectForVideo']>['faceBlendshapes'] | undefined,
     ) {
       const top = result.gestures?.[0]?.[0];
@@ -463,6 +470,7 @@ export function GestureRecognizerProvider({ children }: { children: ReactNode })
         handLandmarks: smoothedHandLandmarks,
         handCategories,
         poseLandmarks,
+        faceLandmarks,
         faceBlendshapes,
       });
       const rawPrimary = pickPrimaryKey(rawKeys);
@@ -475,6 +483,7 @@ export function GestureRecognizerProvider({ children }: { children: ReactNode })
         detectedKeys: stabilizedKeys,
         mpCategory,
         score: top?.score ?? 0,
+        duoMetrics: computeDuoHandMetrics(smoothedHandLandmarks, poseLandmarks, faceLandmarks),
       });
     }
 
@@ -507,9 +516,21 @@ export function GestureRecognizerProvider({ children }: { children: ReactNode })
             handLandmarkSmootherRef.current.reset();
           }
 
-          const poseResult = poseLandmarker.detectForVideo(video, timestamp);
           const faceResult = faceLandmarker.detectForVideo(video, timestamp);
-          const rawPoseLandmarks = poseResult.landmarks ?? [];
+          const rawFaceLandmarks = faceResult.faceLandmarks ?? [];
+
+          if (!poseCropCanvasRef.current) {
+            poseCropCanvasRef.current = document.createElement('canvas');
+          }
+
+          const rawPoseLandmarks = detectDuoPoseLandmarks(
+            poseLandmarker,
+            video,
+            timestamp,
+            rawFaceLandmarks,
+            poseCropCanvasRef.current,
+            nextMediaPipeTimestamp,
+          );
           const smoothedFaceBlendshapes = faceBlendshapeSmootherRef.current.smooth(
             faceResult.faceBlendshapes,
             timestamp,
@@ -536,6 +557,7 @@ export function GestureRecognizerProvider({ children }: { children: ReactNode })
             result,
             smoothedHandLandmarks,
             smoothedPoseLandmarks,
+            rawFaceLandmarks,
             smoothedFaceBlendshapes,
           );
           drawPreview(smoothedHandLandmarks, smoothedPoseLandmarks, video);
@@ -565,7 +587,7 @@ export function GestureRecognizerProvider({ children }: { children: ReactNode })
           recognizer = await GestureRecognizer.createFromOptions(vision, {
             baseOptions: { modelAssetPath: MODEL_URL, delegate: 'GPU' },
             runningMode: 'VIDEO',
-            numHands: 2,
+            numHands: 4,
             minHandDetectionConfidence: 0.55,
             minHandPresenceConfidence: 0.55,
             minTrackingConfidence: 0.6,
@@ -574,33 +596,36 @@ export function GestureRecognizerProvider({ children }: { children: ReactNode })
             ...visionOptions,
             baseOptions: { modelAssetPath: POSE_MODEL_URL, delegate: 'GPU' },
             runningMode: 'VIDEO',
-            numPoses: 2,
-            minPoseDetectionConfidence: 0.5,
-            minPosePresenceConfidence: 0.5,
-            minTrackingConfidence: 0.5,
+            numPoses: POSE_LANDMARKER_NUM_POSES,
+            minPoseDetectionConfidence: 0.2,
+            minPosePresenceConfidence: 0.2,
+            minTrackingConfidence: 0.2,
           });
           faceLandmarker = await FaceLandmarker.createFromOptions(vision, {
             ...visionOptions,
             baseOptions: { modelAssetPath: FACE_MODEL_URL, delegate: 'GPU' },
             runningMode: 'VIDEO',
-            numFaces: 1,
+            numFaces: DUO_PLAYER_COUNT,
             outputFaceBlendshapes: true,
           });
         } catch {
           recognizer = await GestureRecognizer.createFromOptions(vision, {
             baseOptions: { modelAssetPath: MODEL_URL, delegate: 'CPU' },
             runningMode: 'VIDEO',
-            numHands: 2,
+            numHands: 4,
           });
           poseLandmarker = await PoseLandmarker.createFromOptions(vision, {
             baseOptions: { modelAssetPath: POSE_MODEL_URL, delegate: 'CPU' },
             runningMode: 'VIDEO',
-            numPoses: 2,
+            numPoses: POSE_LANDMARKER_NUM_POSES,
+            minPoseDetectionConfidence: 0.2,
+            minPosePresenceConfidence: 0.2,
+            minTrackingConfidence: 0.2,
           });
           faceLandmarker = await FaceLandmarker.createFromOptions(vision, {
             baseOptions: { modelAssetPath: FACE_MODEL_URL, delegate: 'CPU' },
             runningMode: 'VIDEO',
-            numFaces: 1,
+            numFaces: DUO_PLAYER_COUNT,
             outputFaceBlendshapes: true,
           });
         }

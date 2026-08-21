@@ -388,6 +388,26 @@
   gap: 0;
 }
 
+.task-icon .glyph-emoji-quad {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  font-size: 22px;
+  line-height: 1;
+}
+
+.task-icon .glyph-emoji-pair {
+  display: inline-flex;
+  align-items: center;
+  gap: 1px;
+}
+
+.task-icon .glyph-emoji-mirror {
+  display: inline-block;
+  transform: scaleX(-1);
+}
+
 .task-header-text {
   flex: 1;
   min-width: 0;
@@ -481,6 +501,145 @@
 .task-card-glyph .glyph-emoji-mirror {
   display: inline-block;
   transform: scaleX(-1);
+}
+
+.task-card-glyph .glyph-emoji-quad {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  line-height: 1;
+  font-size: 28px;
+}
+
+.task-card-glyph .glyph-emoji-pair {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.duo-gesture-checklist {
+  width: 100%;
+  margin: 0;
+  padding: 12px 14px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.55);
+  border: 1.5px solid rgba(224, 229, 245, 0.9);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  text-align: left;
+  font-size: 13px;
+  color: #0014c8;
+}
+
+.duo-check-shared {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid rgba(224, 229, 245, 0.9);
+}
+
+.duo-check-players {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.duo-check-player {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 8px;
+  border-radius: 10px;
+  background: rgba(250, 251, 255, 0.65);
+  border: 1.5px solid rgba(224, 229, 245, 0.75);
+  text-align: center;
+}
+
+.duo-check-player.met {
+  border-color: rgba(126, 237, 208, 0.85);
+  background: rgba(240, 255, 248, 0.55);
+}
+
+.duo-check-player-label {
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--level-color, #0014c8);
+}
+
+.duo-check-player-glyph {
+  font-size: 34px;
+  line-height: 1;
+  min-height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.duo-check-player-glyph .glyph-emoji-pair {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.duo-check-player-glyph .glyph-emoji-mirror {
+  display: inline-block;
+  transform: scaleX(-1);
+}
+
+.duo-check-player-glyph .glyph-emoji-single {
+  display: inline-flex;
+  font-size: 38px;
+}
+
+.duo-check-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  gap: 6px;
+  width: 100%;
+  font-size: 12px;
+}
+
+.duo-check-row.missing {
+  opacity: 0.72;
+}
+
+.duo-check-row.met {
+  font-weight: 600;
+}
+
+.duo-check-ready {
+  margin-top: 2px;
+  padding-top: 8px;
+  border-top: 1px solid rgba(224, 229, 245, 0.9);
+  text-align: center;
+  font-weight: 700;
+  color: var(--level-color, #0014c8);
+}
+
+.duo-check-hold-bar {
+  height: 4px;
+  border-radius: 999px;
+  background: rgba(224, 229, 245, 0.9);
+  overflow: hidden;
+}
+
+.duo-check-hold-fill {
+  height: 100%;
+  border-radius: inherit;
+  background: var(--level-color, #0014c8);
+  transition: width 0.12s ease;
+}
+
+.duo-check-icon {
+  flex: 0 0 1.1em;
+  text-align: center;
 }
 
 .task-card-glyph svg {
