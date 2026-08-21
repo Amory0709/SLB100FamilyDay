@@ -31,6 +31,7 @@ export interface GameEngine {
   completeLevel(levelId: number): boolean;
   resetLevelProgress(): void;
   returnToLobby(): void;
+  setLevelColors(colors: string[]): void;
   applyPanelAwareCamera(panelVisible: boolean, panelWidth: number): void;
   applyHandOrbit(deltaAzimuth: number, deltaPolar: number): boolean;
   applyHandZoom(deltaDistance: number): boolean;
@@ -174,6 +175,21 @@ export function createGameEngine(
     tgt: null,
     marker: null,
   }));
+
+  let levelColors: string[] = [...LEVEL_COLORS];
+
+  function getLevelColor(idx: number): string {
+    return levelColors[idx] ?? LEVEL_COLORS[idx] ?? '#0014c8';
+  }
+
+  function setLevelColors(colors: string[]) {
+    levelColors = colors.slice(0, levelSlots.length);
+    while (levelColors.length < levelSlots.length) {
+      levelColors.push(LEVEL_COLORS[levelColors.length] ?? '#0014c8');
+    }
+    rebuildLevelMarkers();
+    applySavedLevelColors();
+  }
 
   const levelAnimations: LevelAnimation[] = [];
   const _meshBox = new THREE.Box3();
@@ -535,8 +551,8 @@ export function createGameEngine(
     const slot = levelSlots[levelIdx];
     if (!slot?.marker) return;
     const done = completedLevels.has(levelIdx + 1);
-    const color = new THREE.Color(done ? '#ffffff' : LEVEL_COLORS[levelIdx]);
-    const accent = new THREE.Color(LEVEL_COLORS[levelIdx]);
+    const color = new THREE.Color(done ? '#ffffff' : getLevelColor(levelIdx));
+    const accent = new THREE.Color(getLevelColor(levelIdx));
 
     slot.marker.traverse((o) => {
       if (!(o instanceof THREE.Mesh) || !o.material || o.name === 'badge') return;
@@ -561,7 +577,7 @@ export function createGameEngine(
       return paintLevelZoneAnimated(levelId);
     }
 
-    const color = new THREE.Color(LEVEL_COLORS[idx]);
+    const color = new THREE.Color(getLevelColor(idx));
     let painted = 0;
 
     modelMeshZones.forEach((entry) => {
@@ -582,7 +598,7 @@ export function createGameEngine(
     const slot = levelSlots[levelIdx];
     if (!slot?.marker) return;
 
-    const color = new THREE.Color(LEVEL_COLORS[levelIdx]);
+    const color = new THREE.Color(getLevelColor(levelIdx));
     const shockwave = new THREE.Mesh(
       new THREE.RingGeometry(0.55, 0.78, 56),
       new THREE.MeshBasicMaterial({
@@ -626,7 +642,7 @@ export function createGameEngine(
 
   function paintLevelZoneAnimated(levelId: number) {
     const idx = levelId - 1;
-    const color = new THREE.Color(LEVEL_COLORS[idx]);
+    const color = new THREE.Color(getLevelColor(idx));
     const slot = levelSlots[idx];
     const anchor = slot?.pos ? new THREE.Vector3(...slot.pos) : null;
     let painted = 0;
@@ -1047,7 +1063,7 @@ export function createGameEngine(
       badgeData.badgeCtx,
       badgeData.badgeSize,
       levelIdx + 1,
-      LEVEL_COLORS[levelIdx],
+      getLevelColor(levelIdx),
       done,
     );
     (badge.material as THREE.SpriteMaterial).map!.needsUpdate = true;
@@ -1246,7 +1262,7 @@ export function createGameEngine(
     });
     levelSlots.forEach((slot, i) => {
       if (!slot.pos) return;
-      const marker = makeLevelMarker(LEVEL_COLORS[i], slot.label, i + 1);
+      const marker = makeLevelMarker(getLevelColor(i), slot.label, i + 1);
       marker.position.set(slot.pos[0], slot.pos[1], slot.pos[2]);
       routeGroup!.add(marker);
       slot.marker = marker;
@@ -1581,6 +1597,7 @@ export function createGameEngine(
     completeLevel,
     resetLevelProgress,
     returnToLobby,
+    setLevelColors,
     applyPanelAwareCamera,
     applyHandOrbit,
     applyHandZoom,

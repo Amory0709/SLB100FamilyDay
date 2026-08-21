@@ -20,7 +20,8 @@ export const PIN_KEY = 'slb100_pin_views_v1';
 /** >1 shrinks that level's paint zone (weighted Voronoi). Lv2 yellow was too large. */
 export const LEVEL_ZONE_WEIGHT = [0.9, 1.7, 0.92, 0.88] as const;
 
-export const LEVEL_COLORS = ['#7eedd0', '#ffe66d', '#ff8fab', '#e0b4ff'] as const;
+/** Default palette — matches single-mode levels.json order (Lv1→Lv4). */
+export const LEVEL_COLORS = ['#e0b4ff', '#ffe66d', '#ff8fab', '#7eedd0'] as const;
 
 export const LEVEL_LABELS = ['Lv1', 'Lv2', 'Lv3', 'Lv4'] as const;
 

@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { GameMode, LevelFlowState } from '@/types/levels';
-import { getLevelConfig, getModeConfig, getModeLevelColors, loadLevelsConfig, resolveLevelsConfig } from '@/lib/levels';
+import { getLevelConfig, getModeConfig, getModeLevelColorList, getModeLevelColors, loadLevelsConfig, resolveLevelsConfig } from '@/lib/levels';
+import { LEVEL_COLORS } from '@/game/constants';
 import { createGameEngine, type GameEngine } from '@/game/createGameEngine';
 import { LoaderOverlay } from '@/components/LoaderOverlay';
 import { useGestureRecognizerBoot, useGestureCamera } from '@/hooks/useGestureRecognizer';
@@ -162,6 +163,8 @@ export default function App() {
       alert(t('failedLoadLevels'));
       return;
     }
+    const cfg = getModeConfig(levelsConfig, mode);
+    engineRef.current?.setLevelColors(getModeLevelColorList(cfg?.levels ?? []));
     setCurrentMode(mode);
     setLobbyVisible(false);
     setCurrentLevel(1);
@@ -173,6 +176,7 @@ export default function App() {
     setCurrentMode(null);
     setCurrentLevel(0);
     setLobbyVisible(true);
+    engineRef.current?.setLevelColors([...LEVEL_COLORS]);
     engineRef.current?.returnToLobby();
   };
 
