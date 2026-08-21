@@ -212,6 +212,30 @@ export default function App() {
     setFlowState('won');
   }, [currentLevel]);
 
+  const handleWonNext = () => {
+    const next = currentLevel + 1;
+    if (next > totalLevels) setFlowState('outro');
+    else {
+      setCurrentLevel(next);
+      setFlowState('intro');
+    }
+  };
+
+  const handleWonReplay = () => {
+    setTaskActive(false);
+    setFlowState('task');
+
+    const needsGesture =
+      levelConfig?.completionType === 'gesture' && (levelConfig?.gestures?.length ?? 0) > 0;
+    if (needsGesture) {
+      void ensureGestureCamera().catch(() => {
+        /* surfaced in task bar */
+      });
+    }
+
+    engineRef.current?.flyToLevel(currentLevel, () => setTaskActive(true));
+  };
+
   useEffect(() => {
     if (flowState !== 'outro' || !modelReady) return;
     engineRef.current?.playOutroCelebration();
@@ -268,7 +292,8 @@ export default function App() {
         <LevelWonModal
           level={levelConfig}
           totalLevels={totalLevels}
-          onLobby={handleReturnLobby}
+          onNext={handleWonNext}
+          onReplay={handleWonReplay}
         />
       )}
 
