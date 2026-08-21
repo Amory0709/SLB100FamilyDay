@@ -1,7 +1,7 @@
 import type { NormalizedLandmark } from '@mediapipe/tasks-vision';
 
-/** MediaPipe index-finger tip landmark index. */
-export const INDEX_FINGER_TIP = 8;
+/** Palm base landmarks used to track the hand center (not index finger). */
+const PALM_LANDMARKS = [0, 5, 9, 13, 17] as const;
 
 export const HAND_CURSOR_DWELL_MS = 1500;
 
@@ -22,10 +22,28 @@ export const EMPTY_HAND_CURSOR: NormalizedHandCursor = {
 const CLICKABLE_SELECTOR =
   'button:not(:disabled), a[href], input[type="button"]:not(:disabled), input[type="submit"]:not(:disabled), [role="button"]:not([aria-disabled="true"])';
 
+function computePalmCenter(hand: NormalizedLandmark[]): NormalizedLandmark | null {
+  if (hand.length < 21) return null;
+
+  let x = 0;
+  let y = 0;
+  let z = 0;
+  for (const index of PALM_LANDMARKS) {
+    const point = hand[index];
+    if (!point) return null;
+    x += point.x;
+    y += point.y;
+    z += point.z ?? 0;
+  }
+
+  const count = PALM_LANDMARKS.length;
+  return { x: x / count, y: y / count, z: z / count, visibility: 1 };
+}
+
 export function pickHandCursorLandmark(hands: NormalizedLandmark[][]): NormalizedLandmark | null {
   for (const hand of hands) {
-    const tip = hand[INDEX_FINGER_TIP];
-    if (tip) return tip;
+    const center = computePalmCenter(hand);
+    if (center) return center;
   }
   return null;
 }

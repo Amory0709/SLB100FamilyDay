@@ -13,6 +13,7 @@ import { LevelOutroModal } from '@/components/LevelOutroModal';
 import { LanguageSwitcher } from '@/components/LanguageSwitcher';
 import { useLanguage } from '@/i18n/LanguageContext';
 import { HandCursorOverlay } from '@/components/HandCursorOverlay';
+import { HandControlIntroModal } from '@/components/HandControlIntroModal';
 import './App.css';
 
 import type { GestureRecognizerStatus } from '@/hooks/useGestureRecognizer';
@@ -47,6 +48,7 @@ export default function App() {
   const [loadError, setLoadError] = useState<string | null>(null);
   const [modelReady, setModelReady] = useState(false);
   const [showLoader, setShowLoader] = useState(true);
+  const [handIntroDone, setHandIntroDone] = useState(false);
 
   const levelsConfig = useMemo(
     () => (rawLevelsConfig ? resolveLevelsConfig(rawLevelsConfig, language) : null),
@@ -239,11 +241,18 @@ export default function App() {
     engineRef.current?.playOutroCelebration();
   }, [flowState, modelReady]);
 
+  const appReady = !showLoader && !loadError;
+  const handCursorEnabled = appReady && gestureBootStatus !== 'error';
+
   return (
     <>
       <LoaderOverlay status={loadStatus} error={loadError} visible={showLoader && !loadError} />
 
-      <HandCursorOverlay enabled={!showLoader && !loadError && gestureBootStatus !== 'error'} />
+      <HandCursorOverlay enabled={handCursorEnabled} />
+
+      {appReady && !handIntroDone && (
+        <HandControlIntroModal onContinue={() => setHandIntroDone(true)} />
+      )}
 
       {!lobbyVisible && (
         <div className="language-switcher-floating">

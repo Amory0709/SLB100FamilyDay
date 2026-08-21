@@ -39,6 +39,15 @@ const en = {
   cameraTimeout: 'Camera timed out. Close other apps using the camera, then retry.',
   gestureBootFailed: 'Failed to start gesture recognition',
   switchLanguage: 'Switch language',
+  handIntroTitle: 'Control with your hand',
+  handIntroLead: 'Use your hand like a mouse — no touch needed.',
+  handIntroStepPoint: 'Hold your hand up in front of the camera.',
+  handIntroStepMove: 'A soft, colorful mist follows your hand on screen.',
+  handIntroStepClick: (seconds: string) => `Hover over a button for ${seconds} seconds to click.`,
+  handIntroCameraTip: 'Allow camera access when prompted. Stand where the camera can see your hand.',
+  handIntroContinue: 'Got it, let\'s go →',
+  handIntroPracticeHint: (seconds: string) =>
+    `Try it now: point at the button above and hold for ${seconds} seconds.`,
 } as const;
 
 const zh = {
@@ -80,6 +89,14 @@ const zh = {
   cameraTimeout: '摄像头启动超时。请关闭占用摄像头的应用后重试。',
   gestureBootFailed: '手势识别启动失败',
   switchLanguage: '切换语言',
+  handIntroTitle: '用手势控制',
+  handIntroLead: '用手势当作鼠标使用，无需触摸屏幕。',
+  handIntroStepPoint: '在摄像头前举起手即可。',
+  handIntroStepMove: '屏幕上会出现柔和的彩色雾团，跟随你的手移动。',
+  handIntroStepClick: (seconds: string) => `在按钮上停留 ${seconds} 秒即可点击。`,
+  handIntroCameraTip: '请在浏览器提示时允许摄像头权限，并确保摄像头能看清你的手。',
+  handIntroContinue: '明白了，开始 →',
+  handIntroPracticeHint: (seconds: string) => `现在就试试：指向上方按钮并停留 ${seconds} 秒。`,
 } as const;
 
 export type TranslationKey = keyof typeof en;

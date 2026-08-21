@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useId, useRef } from 'react';
 import {
   EMPTY_HAND_CURSOR,
   HAND_CURSOR_DWELL_MS,
@@ -7,14 +7,19 @@ import {
   type NormalizedHandCursor,
 } from '@/lib/gestures/handCursor';
 import { useGestureRecognizerContext } from '@/contexts/GestureRecognizerContext';
+import { HAND_CURSOR_RING_RADIUS, HandCursorMark } from '@/components/HandCursorMark';
 
 const HAND_CURSOR_CONSUMER = 'hand-cursor';
+const HAND_CURSOR_SIZE = 88;
+const RING_CIRCUMFERENCE = 2 * Math.PI * HAND_CURSOR_RING_RADIUS;
 
 interface HandCursorOverlayProps {
   enabled: boolean;
 }
 
 export function HandCursorOverlay({ enabled }: HandCursorOverlayProps) {
+  const gradientId = useId();
+  const filterId = useId();
   const { handCursorRef, setActive, ensureCamera } = useGestureRecognizerContext();
   const dotRef = useRef<HTMLDivElement>(null);
   const progressRef = useRef<SVGCircleElement>(null);
@@ -43,10 +48,8 @@ export function HandCursorOverlay({ enabled }: HandCursorOverlayProps) {
     const updateProgress = (progress: number) => {
       const circle = progressRef.current;
       if (!circle) return;
-      const radius = 18;
-      const circumference = 2 * Math.PI * radius;
-      circle.style.strokeDasharray = `${circumference}`;
-      circle.style.strokeDashoffset = `${circumference * (1 - progress)}`;
+      circle.style.strokeDasharray = `${RING_CIRCUMFERENCE}`;
+      circle.style.strokeDashoffset = `${RING_CIRCUMFERENCE * (1 - progress)}`;
     };
 
     const tick = (now: number) => {
@@ -101,10 +104,13 @@ export function HandCursorOverlay({ enabled }: HandCursorOverlayProps) {
   return (
     <div className="hand-cursor-layer" aria-hidden="true">
       <div ref={dotRef} className="hand-cursor-dot" data-visible="false">
-        <svg className="hand-cursor-progress" viewBox="0 0 44 44" width="44" height="44">
-          <circle className="hand-cursor-progress-track" cx="22" cy="22" r="18" />
-          <circle ref={progressRef} className="hand-cursor-progress-fill" cx="22" cy="22" r="18" />
-        </svg>
+        <HandCursorMark
+          size={HAND_CURSOR_SIZE}
+          gradientId={gradientId}
+          filterId={filterId}
+          progressRef={progressRef}
+          className="hand-cursor-mark"
+        />
       </div>
     </div>
   );
