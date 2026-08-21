@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useId, useRef } from 'react';
 import {
   useGestureRecognizerContext,
   type GestureFrame,
@@ -8,19 +8,20 @@ import {
 export type { GestureFrame, GestureRecognizerStatus };
 
 export function useGestureRecognizer(active: boolean) {
+  const consumerId = useId();
   const { setActive, ensureCamera, videoRef, status, error, frame } = useGestureRecognizerContext();
   const previewWrapRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    setActive(active);
+    setActive(consumerId, active);
     if (!active) return;
 
     void ensureCamera().catch(() => {
       /* error state handled in context */
     });
 
-    return () => setActive(false);
-  }, [active, setActive, ensureCamera]);
+    return () => setActive(consumerId, false);
+  }, [active, consumerId, setActive, ensureCamera]);
 
   // Re-verify camera when task bar remounts after level transitions.
   useEffect(() => {

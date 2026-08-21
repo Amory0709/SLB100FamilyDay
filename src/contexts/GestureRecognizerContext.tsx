@@ -27,6 +27,12 @@ import {
   DEFAULT_FACE_BLENDSHAPE_SMOOTHER_OPTIONS,
 } from '@/lib/gestures/faceBlendshapeSmoothing';
 import { GestureKeyStabilizer } from '@/lib/gestures/gestureStabilizer';
+import {
+  EMPTY_HAND_CURSOR,
+  landmarkToNormalizedCursor,
+  pickHandCursorLandmark,
+  type NormalizedHandCursor,
+} from '@/lib/gestures/handCursor';
 import { translate } from '@/i18n/translations';
 import { useLanguage } from '@/i18n/LanguageContext';
 import type { Language } from '@/i18n/types';
@@ -53,7 +59,8 @@ export interface GestureFrame {
 interface GestureRecognizerContextValue {
   videoRef: RefObject<HTMLVideoElement | null>;
   canvasRef: RefObject<HTMLCanvasElement | null>;
-  setActive: (active: boolean) => void;
+  handCursorRef: RefObject<NormalizedHandCursor>;
+  setActive: (consumerId: string, active: boolean) => void;
   ensureCamera: () => Promise<void>;
   status: GestureRecognizerStatus;
   bootStatus: GestureRecognizerStatus;
@@ -201,7 +208,8 @@ export function GestureRecognizerProvider({ children }: { children: ReactNode })
     return ts;
   }, []);
   const streamRef = useRef<MediaStream | null>(null);
-  const activeRef = useRef(false);
+  const activeConsumersRef = useRef(new Set<string>());
+  const handCursorRef = useRef<NormalizedHandCursor>(EMPTY_HAND_CURSOR);
   const modelReadyRef = useRef(false);
   const cameraReadyRef = useRef(false);
   const cameraBootRef = useRef<Promise<void> | null>(null);
@@ -218,7 +226,13 @@ export function GestureRecognizerProvider({ children }: { children: ReactNode })
   const [error, setError] = useState<string | null>(null);
   const [frame, setFrame] = useState<GestureFrame>(EMPTY_FRAME);
 
+  const isRecognizerActive = useCallback(
+    () => activeConsumersRef.current.size > 0,
+    [],
+  );
+
   const syncRuntimeStatus = useCallback(() => {
+    const active = isRecognizerActive();
     if (!modelReadyRef.current) {
       setRuntimeStatus('loading');
       return;
@@ -228,11 +242,11 @@ export function GestureRecognizerProvider({ children }: { children: ReactNode })
       return;
     }
     if (!cameraReadyRef.current) {
-      setRuntimeStatus(activeRef.current ? 'loading' : 'ready');
+      setRuntimeStatus(active ? 'loading' : 'ready');
       return;
     }
-    setRuntimeStatus(activeRef.current ? 'running' : 'ready');
-  }, []);
+    setRuntimeStatus(active ? 'running' : 'ready');
+  }, [isRecognizerActive]);
 
   const resetTrackingState = useCallback(() => {
     handLandmarkSmootherRef.current.reset();
@@ -240,6 +254,7 @@ export function GestureRecognizerProvider({ children }: { children: ReactNode })
     faceBlendshapeSmootherRef.current.reset();
     gestureStabilizerRef.current.reset();
     lastVideoTimeRef.current = -1;
+    handCursorRef.current = EMPTY_HAND_CURSOR;
     // Keep frameIndexRef monotonic — MediaPipe VIDEO mode rejects timestamp resets.
     setFrame(EMPTY_FRAME);
   }, []);
@@ -262,7 +277,7 @@ export function GestureRecognizerProvider({ children }: { children: ReactNode })
         track.onended = () => {
           if (!cameraReadyRef.current) return;
           stopCamera();
-          setRuntimeStatus(activeRef.current ? 'error' : 'ready');
+          setRuntimeStatus(isRecognizerActive() ? 'error' : 'ready');
           setError(translate(languageRef.current, 'cameraTimeout'));
         };
       });
@@ -372,12 +387,19 @@ export function GestureRecognizerProvider({ children }: { children: ReactNode })
   }, [startCamera, stopCamera, syncRuntimeStatus]);
 
   const setActive = useCallback(
-    (active: boolean) => {
-      activeRef.current = active;
-      resetTrackingState();
+    (consumerId: string, active: boolean) => {
+      const wasActive = isRecognizerActive();
+      if (active) activeConsumersRef.current.add(consumerId);
+      else activeConsumersRef.current.delete(consumerId);
+      if (!wasActive && isRecognizerActive()) {
+        resetTrackingState();
+      }
+      if (wasActive && !isRecognizerActive()) {
+        handCursorRef.current = EMPTY_HAND_CURSOR;
+      }
       syncRuntimeStatus();
     },
-    [resetTrackingState, syncRuntimeStatus],
+    [isRecognizerActive, resetTrackingState, syncRuntimeStatus],
   );
 
   useEffect(() => {
@@ -460,7 +482,7 @@ export function GestureRecognizerProvider({ children }: { children: ReactNode })
         recognizer &&
         poseLandmarker &&
         faceLandmarker &&
-        activeRef.current &&
+        isRecognizerActive() &&
         cameraReadyRef.current &&
         hasVideoFrames(video) &&
         video.currentTime !== lastVideoTimeRef.current
@@ -496,6 +518,11 @@ export function GestureRecognizerProvider({ children }: { children: ReactNode })
           if (rawLandmarks.length === 0 && rawPoseLandmarks.length === 0) {
             gestureStabilizerRef.current.reset();
           }
+
+          const cursorLandmark = pickHandCursorLandmark(smoothedHandLandmarks);
+          handCursorRef.current = cursorLandmark
+            ? landmarkToNormalizedCursor(cursorLandmark)
+            : EMPTY_HAND_CURSOR;
 
           processResult(
             result,
@@ -614,6 +641,8 @@ export function GestureRecognizerProvider({ children }: { children: ReactNode })
       gestureStabilizerRef.current.reset();
       lastVideoTimeRef.current = -1;
       lastMpTimestampRef.current = 0;
+      handCursorRef.current = EMPTY_HAND_CURSOR;
+      activeConsumersRef.current.clear();
       setFrame(EMPTY_FRAME);
       setBootStatus('idle');
       setRuntimeStatus('idle');
@@ -625,6 +654,7 @@ export function GestureRecognizerProvider({ children }: { children: ReactNode })
   const value: GestureRecognizerContextValue = {
     videoRef,
     canvasRef,
+    handCursorRef,
     setActive,
     ensureCamera,
     status,

@@ -12,6 +12,7 @@ import { LevelWonModal } from '@/components/LevelWonModal';
 import { LevelOutroModal } from '@/components/LevelOutroModal';
 import { LanguageSwitcher } from '@/components/LanguageSwitcher';
 import { useLanguage } from '@/i18n/LanguageContext';
+import { HandCursorOverlay } from '@/components/HandCursorOverlay';
 import './App.css';
 
 import type { GestureRecognizerStatus } from '@/hooks/useGestureRecognizer';
@@ -241,6 +242,8 @@ export default function App() {
   return (
     <>
       <LoaderOverlay status={loadStatus} error={loadError} visible={showLoader && !loadError} />
+
+      <HandCursorOverlay enabled={!showLoader && !loadError && gestureBootStatus !== 'error'} />
 
       {!lobbyVisible && (
         <div className="language-switcher-floating">
