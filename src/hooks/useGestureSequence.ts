@@ -3,6 +3,7 @@ import type { LevelGesture } from '@/types/levels';
 import { gestureKeyMatches } from '@/lib/gestures/mapping';
 
 export const HOLD_MS = 2000;
+export const SMILE_HOLD_MS = 1000;
 
 export type GestureStepStatus = 'pending' | 'active' | 'done' | 'wrong';
 
@@ -38,6 +39,7 @@ export function useGestureSequence(
   gestures: LevelGesture[],
   detectedKeys: string[],
   enabled: boolean,
+  holdMs: number = HOLD_MS,
 ) {
   const [state, setState] = useState<GestureSequenceState>(() => initState(gestures));
   const holdStartRef = useRef<number | null>(null);
@@ -70,7 +72,7 @@ export function useGestureSequence(
       }
 
       const elapsed = now - holdStartRef.current;
-      const progress = Math.min(1, elapsed / HOLD_MS);
+      const progress = Math.min(1, elapsed / holdMs);
 
       setState((prev) => ({
         ...prev,
@@ -79,7 +81,7 @@ export function useGestureSequence(
         wrongFlash: false,
       }));
 
-      if (elapsed >= HOLD_MS) {
+      if (elapsed >= holdMs) {
         holdStartRef.current = null;
         lastCorrectTimeRef.current = 0;
         const nextIndex = idx + 1;
@@ -145,7 +147,7 @@ export function useGestureSequence(
     }
 
     setState((prev) => ({ ...prev, holdProgress: 0, detectedKey: null }));
-  }, [detectedKeys, enabled, gestures]);
+  }, [detectedKeys, enabled, gestures, holdMs]);
 
   const reset = useCallback(() => {
     holdStartRef.current = null;

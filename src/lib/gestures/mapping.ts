@@ -17,7 +17,16 @@ export interface DetectionInput {
   faceBlendshapes: Classifications[] | undefined;
 }
 
-export function detectAllKeys(input: DetectionInput): string[] {
+export type DetectionScope = 'full' | 'face';
+
+export function detectAllKeys(
+  input: DetectionInput,
+  scope: DetectionScope = 'full',
+): string[] {
+  if (scope === 'face') {
+    return detectFaceKeys(input.faceBlendshapes);
+  }
+
   const keys = new Set<string>([
     ...detectHandKeys(input.handLandmarks, input.handCategories),
     ...detectPoseKeys(input.poseLandmarks, input.handLandmarks),

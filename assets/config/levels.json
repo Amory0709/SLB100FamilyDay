@@ -21,8 +21,8 @@
             "zh": "Family Day 充满欢乐。向我们展现你最灿烂的笑容!"
           },
           "task": {
-            "en": "Smile at the camera and hold for 2 seconds.",
-            "zh": "对着摄像头微笑,保持 2 秒。"
+            "en": "Smile at the camera and hold for 1 second.",
+            "zh": "对着摄像头微笑,保持 1 秒。"
           },
           "taskIcon": "😊",
           "completionType": "gesture",

@@ -3,7 +3,8 @@ import type { LevelConfig, LevelGesture } from '@/types/levels';
 import { GESTURE_GLYPHS } from '@/lib/gestures/glyphs';
 import { GESTURE_LABELS } from '@/lib/gestures/labels';
 import { useGestureRecognizer } from '@/hooks/useGestureRecognizer';
-import { useGestureSequence, type GestureStepStatus } from '@/hooks/useGestureSequence';
+import { useGestureSequence, HOLD_MS, SMILE_HOLD_MS, type GestureStepStatus } from '@/hooks/useGestureSequence';
+import type { DetectionScope } from '@/lib/gestures/mapping';
 import { useLanguage } from '@/i18n/LanguageContext';
 import { GesturePreviewCanvas } from '@/contexts/GestureRecognizerContext';
 import { DuoGestureChecklist, isDuoChecklistGesture } from '@/components/DuoGestureChecklist';
@@ -17,9 +18,15 @@ export function LevelTaskBar({ level, onComplete }: LevelTaskBarProps) {
   const { t, language } = useLanguage();
   const gestures = level.gestures ?? [];
   const useRecognition = gestures.length > 0 && level.completionType === 'gesture';
+  const primaryGestureKey = gestures[0]?.gestureKey;
+  const smileLevel = primaryGestureKey === 'smile';
+  const detectionScope: DetectionScope = smileLevel ? 'face' : 'full';
+  const holdMs = smileLevel ? SMILE_HOLD_MS : HOLD_MS;
 
-  const { previewWrapRef, status, error, frame, ensureCamera } = useGestureRecognizer(useRecognition);
-  const sequence = useGestureSequence(gestures, frame.detectedKeys, useRecognition);
+  const { previewWrapRef, status, error, frame, ensureCamera } = useGestureRecognizer(useRecognition, {
+    detectionScope,
+  });
+  const sequence = useGestureSequence(gestures, frame.detectedKeys, useRecognition, holdMs);
   const completedRef = useRef(false);
 
   const [smoothProgress, setSmoothProgress] = useState(0);

@@ -16,7 +16,7 @@ import {
   type GestureRecognizerResult,
   type NormalizedLandmark,
 } from '@mediapipe/tasks-vision';
-import { detectAllKeys, pickPrimaryKey } from '@/lib/gestures/mapping';
+import { detectAllKeys, pickPrimaryKey, type DetectionScope } from '@/lib/gestures/mapping';
 import { DUO_PLAYER_COUNT, POSE_LANDMARKER_NUM_POSES } from '@/lib/gestures/duoConstants';
 import { detectDuoPoseLandmarks } from '@/lib/gestures/poseRegionDetection';
 import { computeDuoHandMetrics, type DuoHandMetrics } from '@/lib/gestures/duoHandMetrics';
@@ -67,6 +67,7 @@ interface GestureRecognizerContextValue {
   handCursorRef: RefObject<NormalizedHandCursor>;
   detectedKeysRef: RefObject<string[]>;
   setActive: (consumerId: string, active: boolean) => void;
+  setDetectionScope: (scope: DetectionScope) => void;
   ensureCamera: () => Promise<void>;
   status: GestureRecognizerStatus;
   bootStatus: GestureRecognizerStatus;
@@ -230,6 +231,7 @@ export function GestureRecognizerProvider({ children }: { children: ReactNode })
   );
   const gestureStabilizerRef = useRef(new GestureKeyStabilizer());
   const detectedKeysHoldRef = useRef(new DetectedKeysHold(600));
+  const detectionScopeRef = useRef<DetectionScope>('full');
 
   const [bootStatus, setBootStatus] = useState<GestureRecognizerStatus>('idle');
   const [runtimeStatus, setRuntimeStatus] = useState<GestureRecognizerStatus>('idle');
@@ -397,6 +399,13 @@ export function GestureRecognizerProvider({ children }: { children: ReactNode })
     }
   }, [startCamera, stopCamera, syncRuntimeStatus]);
 
+  const setDetectionScope = useCallback((scope: DetectionScope) => {
+    if (detectionScopeRef.current === scope) return;
+    detectionScopeRef.current = scope;
+    gestureStabilizerRef.current.reset();
+    detectedKeysHoldRef.current.reset();
+  }, []);
+
   const setActive = useCallback(
     (consumerId: string, active: boolean) => {
       const wasActive = isRecognizerActive();
@@ -466,13 +475,16 @@ export function GestureRecognizerProvider({ children }: { children: ReactNode })
       const mpCategory = top?.categoryName && top.categoryName !== 'None' ? top.categoryName : null;
       const handCategories = (result.gestures ?? []).map((g) => g?.[0]?.categoryName);
 
-      const rawKeys = detectAllKeys({
-        handLandmarks: smoothedHandLandmarks,
-        handCategories,
-        poseLandmarks,
-        faceLandmarks,
-        faceBlendshapes,
-      });
+      const rawKeys = detectAllKeys(
+        {
+          handLandmarks: smoothedHandLandmarks,
+          handCategories,
+          poseLandmarks,
+          faceLandmarks,
+          faceBlendshapes,
+        },
+        detectionScopeRef.current,
+      );
       const rawPrimary = pickPrimaryKey(rawKeys);
       const gestureKey = gestureStabilizerRef.current.update(rawPrimary);
       const stabilizedKeys = detectedKeysHoldRef.current.update(rawKeys, performance.now());
@@ -693,6 +705,7 @@ export function GestureRecognizerProvider({ children }: { children: ReactNode })
     handCursorRef,
     detectedKeysRef,
     setActive,
+    setDetectionScope,
     ensureCamera,
     status,
     bootStatus,
