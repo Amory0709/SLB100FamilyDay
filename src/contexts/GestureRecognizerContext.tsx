@@ -229,7 +229,7 @@ export function GestureRecognizerProvider({ children }: { children: ReactNode })
     new MultiFaceBlendshapeSmoother(DEFAULT_FACE_BLENDSHAPE_SMOOTHER_OPTIONS),
   );
   const gestureStabilizerRef = useRef(new GestureKeyStabilizer());
-  const detectedKeysHoldRef = useRef(new DetectedKeysHold());
+  const detectedKeysHoldRef = useRef(new DetectedKeysHold(600));
 
   const [bootStatus, setBootStatus] = useState<GestureRecognizerStatus>('idle');
   const [runtimeStatus, setRuntimeStatus] = useState<GestureRecognizerStatus>('idle');

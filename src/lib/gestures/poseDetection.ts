@@ -22,8 +22,41 @@ const POSE =
     rAnkle: 28,
   } as const;
 
+const HSE_LIFT_MIN_VIS = 0.38;
+
+function handsAssistChestHold(
+  handLandmarks: NormalizedLandmark[][],
+  shoulderMid: NormalizedLandmark,
+  hipMid: NormalizedLandmark,
+  ls: NormalizedLandmark,
+  rs: NormalizedLandmark,
+): boolean {
+  if (handLandmarks.length === 0) return false;
+
+  const chestY = (shoulderMid.y + hipMid.y) / 2;
+  let nearChest = 0;
+
+  for (const hand of handLandmarks) {
+    const palm = handPalm(hand);
+    if ((palm.visibility ?? 1) < 0.35) continue;
+
+    const inChestBand =
+      palm.y > Math.min(ls.y, rs.y) - 0.08 &&
+      palm.y < hipMid.y + 0.1 &&
+      Math.abs(palm.y - chestY) < 0.16;
+    const nearCore = Math.abs(palm.x - shoulderMid.x) < 0.28;
+
+    if (inChestBand && nearCore) nearChest += 1;
+  }
+
+  return nearChest >= 1;
+}
+
 /** SIPP safe lift: bent knees, neutral spine, load close to chest (green zone). */
-export function detectHseLift(landmarks: NormalizedLandmark[]): boolean {
+export function detectHseLift(
+  landmarks: NormalizedLandmark[],
+  handLandmarks: NormalizedLandmark[][] = [],
+): boolean {
   if (landmarks.length < 29) return false;
 
   const ls = landmarks[POSE.lShoulder];
@@ -38,18 +71,22 @@ export function detectHseLift(landmarks: NormalizedLandmark[]): boolean {
   const rk = landmarks[POSE.rKnee];
 
   if (
-    !allVisible(landmarks, [
-      POSE.lShoulder,
-      POSE.rShoulder,
-      POSE.lElbow,
-      POSE.rElbow,
-      POSE.lWrist,
-      POSE.rWrist,
-      POSE.lHip,
-      POSE.rHip,
-      POSE.lKnee,
-      POSE.rKnee,
-    ])
+    !allVisible(
+      landmarks,
+      [
+        POSE.lShoulder,
+        POSE.rShoulder,
+        POSE.lElbow,
+        POSE.rElbow,
+        POSE.lWrist,
+        POSE.rWrist,
+        POSE.lHip,
+        POSE.rHip,
+        POSE.lKnee,
+        POSE.rKnee,
+      ],
+      HSE_LIFT_MIN_VIS,
+    )
   ) {
     return false;
   }
@@ -57,34 +94,59 @@ export function detectHseLift(landmarks: NormalizedLandmark[]): boolean {
   const shoulderMid = mid(ls, rs);
   const hipMid = mid(lh, rh);
 
-  const kneesBent = lk.y > lh.y + 0.04 && rk.y > rh.y + 0.04;
+  const leftKneeDrop = lk.y - lh.y;
+  const rightKneeDrop = rk.y - rh.y;
+  const avgKneeDrop = (leftKneeDrop + rightKneeDrop) / 2;
+
+  let squatScore = 0;
+  if (avgKneeDrop < 0.13) squatScore += 1;
+  if (Math.min(leftKneeDrop, rightKneeDrop) < 0.115) squatScore += 1;
+  if (lk.y - shoulderMid.y < 0.42 && rk.y - shoulderMid.y < 0.42) squatScore += 1;
+  if (Math.abs(lk.x - lh.x) > 0.04 || Math.abs(rk.x - rh.x) > 0.04) squatScore += 1;
+
+  if (allVisible(landmarks, [POSE.lAnkle, POSE.rAnkle], 0.32)) {
+    const la = landmarks[POSE.lAnkle];
+    const ra = landmarks[POSE.rAnkle];
+    const leftThigh = dist(lh, lk);
+    const rightThigh = dist(rh, rk);
+    const leftShin = dist(lk, la);
+    const rightShin = dist(rk, ra);
+    if (leftThigh < leftShin * 1.02 || rightThigh < rightShin * 1.02) {
+      squatScore += 1;
+    }
+  }
+
+  const kneesBent = squatScore >= 2;
   const spineNeutral = Math.abs(shoulderMid.x - hipMid.x) < 0.14;
-  const backVertical = shoulderMid.y < hipMid.y - 0.08;
+  const backVertical = shoulderMid.y < hipMid.y - 0.06;
 
   const chestY = (shoulderMid.y + hipMid.y) / 2;
-  const wristsInGreenZone =
-    lw.y > ls.y - 0.06 &&
-    lw.y < hipMid.y + 0.04 &&
-    rw.y > rs.y - 0.06 &&
-    rw.y < hipMid.y + 0.04;
-  const wristsCloseToCore =
-    Math.abs(lw.x - shoulderMid.x) < 0.22 && Math.abs(rw.x - shoulderMid.x) < 0.22;
-  const elbowsBent =
-    dist(lw, le) < dist(le, ls) * 1.15 && dist(rw, re) < dist(re, rs) * 1.15;
-  const elbowsTucked =
-    dist(le, shoulderMid) < 0.28 && dist(re, shoulderMid) < 0.28;
+  let armScore = 0;
+  if (
+    lw.y > ls.y - 0.07 &&
+    lw.y < hipMid.y + 0.06 &&
+    rw.y > rs.y - 0.07 &&
+    rw.y < hipMid.y + 0.06
+  ) {
+    armScore += 1;
+  }
+  if (Math.abs(lw.x - shoulderMid.x) < 0.24 && Math.abs(rw.x - shoulderMid.x) < 0.24) {
+    armScore += 1;
+  }
+  if (dist(lw, le) < dist(le, ls) * 1.15 && dist(rw, re) < dist(re, rs) * 1.15) {
+    armScore += 1;
+  }
+  if (dist(le, shoulderMid) < 0.28 && dist(re, shoulderMid) < 0.28) {
+    armScore += 1;
+  }
+  if (Math.abs(lw.y - rw.y) < 0.13 && Math.abs(lw.y - chestY) < 0.15) {
+    armScore += 1;
+  }
 
-  return (
-    kneesBent &&
-    spineNeutral &&
-    backVertical &&
-    wristsInGreenZone &&
-    wristsCloseToCore &&
-    elbowsBent &&
-    elbowsTucked &&
-    Math.abs(lw.y - rw.y) < 0.12 &&
-    Math.abs(lw.y - chestY) < 0.14
-  );
+  const handAssist = handsAssistChestHold(handLandmarks, shoulderMid, hipMid, ls, rs);
+  const armsAtChest = armScore >= 3 || (armScore >= 2 && handAssist) || handAssist;
+
+  return kneesBent && spineNeutral && backVertical && armsAtChest;
 }
 
 /** Flex both biceps — forearms up, elbows out, wrists near shoulder height. */
@@ -132,10 +194,13 @@ function sortPosesByX(poses: NormalizedLandmark[][]): NormalizedLandmark[][] {
 }
 
 /** Both players hold HSE safe-lift pose at the same time. */
-export function detectHseLiftDuo(poses: NormalizedLandmark[][]): boolean {
+export function detectHseLiftDuo(
+  poses: NormalizedLandmark[][],
+  handLandmarks: NormalizedLandmark[][] = [],
+): boolean {
   if (poses.length < 2) return false;
   const sorted = sortPosesByX(poses);
-  return detectHseLift(sorted[0]) && detectHseLift(sorted[1]);
+  return detectHseLift(sorted[0], handLandmarks) && detectHseLift(sorted[1], handLandmarks);
 }
 
 function isCelebratingPose(landmarks: NormalizedLandmark[]): boolean {
@@ -380,9 +445,9 @@ export function detectPoseKeys(
   const keys: string[] = [];
   if (poses.length === 0) return keys;
 
-  if (poses.some((p) => detectHseLift(p))) keys.push('hse_lift');
+  if (poses.some((p) => detectHseLift(p, handLandmarks))) keys.push('hse_lift');
   if (poses.some((p) => detectMusclePose(p))) keys.push('muscle_pose');
-  if (detectHseLiftDuo(poses)) keys.push('hse_lift_duo');
+  if (detectHseLiftDuo(poses, handLandmarks)) keys.push('hse_lift_duo');
   if (detectHug(poses, handLandmarks)) keys.push('hug');
 
   return keys;

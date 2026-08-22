@@ -12,6 +12,14 @@ import { HAND_CURSOR_LIVE_SIZE, HAND_CURSOR_RING_RADIUS, HandCursorMark } from '
 const HAND_CURSOR_CONSUMER = 'hand-cursor';
 const RING_CIRCUMFERENCE = 2 * Math.PI * HAND_CURSOR_RING_RADIUS;
 
+interface ScreenPointer {
+  x: number;
+  y: number;
+  visible: boolean;
+}
+
+const EMPTY_SCREEN_POINTER: ScreenPointer = { x: 0, y: 0, visible: false };
+
 interface HandCursorOverlayProps {
   enabled: boolean;
   suppressClickRef?: RefObject<boolean>;
@@ -26,6 +34,7 @@ export function HandCursorOverlay({ enabled, suppressClickRef }: HandCursorOverl
   const dwellTargetRef = useRef<HTMLElement | null>(null);
   const dwellStartRef = useRef(0);
   const clickCooldownRef = useRef(0);
+  const mousePointerRef = useRef<ScreenPointer>(EMPTY_SCREEN_POINTER);
 
   useEffect(() => {
     if (!enabled) return;
@@ -41,7 +50,31 @@ export function HandCursorOverlay({ enabled, suppressClickRef }: HandCursorOverl
   useEffect(() => {
     if (!enabled) return;
 
-    document.body.classList.add('hand-cursor-active');
+    const onPointerMove = (event: PointerEvent) => {
+      if (event.pointerType !== 'mouse') return;
+      mousePointerRef.current = {
+        x: event.clientX,
+        y: event.clientY,
+        visible: true,
+      };
+    };
+
+    const hideMousePointer = () => {
+      mousePointerRef.current = EMPTY_SCREEN_POINTER;
+    };
+
+    window.addEventListener('pointermove', onPointerMove);
+    document.addEventListener('mouseleave', hideMousePointer);
+
+    return () => {
+      window.removeEventListener('pointermove', onPointerMove);
+      document.removeEventListener('mouseleave', hideMousePointer);
+      mousePointerRef.current = EMPTY_SCREEN_POINTER;
+    };
+  }, [enabled]);
+
+  useEffect(() => {
+    if (!enabled) return;
 
     let raf = 0;
 
@@ -54,37 +87,59 @@ export function HandCursorOverlay({ enabled, suppressClickRef }: HandCursorOverl
 
     const tick = (now: number) => {
       const cursor: NormalizedHandCursor = handCursorRef.current ?? EMPTY_HAND_CURSOR;
+      const mousePointer = mousePointerRef.current;
       const dot = dotRef.current;
 
       if (dot) {
+        let x = 0;
+        let y = 0;
+        let showCursor = false;
+        let useHandDwell = false;
+
         if (cursor.visible) {
-          const { x, y } = normalizedCursorToScreen(cursor);
+          ({ x, y } = normalizedCursorToScreen(cursor));
+          showCursor = true;
+          useHandDwell = true;
+        } else if (mousePointer.visible) {
+          x = mousePointer.x;
+          y = mousePointer.y;
+          showCursor = true;
+        }
+
+        if (showCursor) {
           dot.style.transform = `translate(${x}px, ${y}px)`;
           dot.dataset.visible = 'true';
+          document.body.classList.add('hand-cursor-active');
 
-          const target = findClickableElement(x, y);
-          if (target !== dwellTargetRef.current) {
-            dwellTargetRef.current = target;
-            dwellStartRef.current = now;
-            updateProgress(0);
-          } else if (target && now >= clickCooldownRef.current && !suppressClickRef?.current) {
-            const elapsed = now - dwellStartRef.current;
-            const progress = Math.min(1, elapsed / HAND_CURSOR_DWELL_MS);
-            updateProgress(progress);
-
-            if (progress >= 1) {
-              target.click();
-              clickCooldownRef.current = now + 600;
+          if (useHandDwell) {
+            const target = findClickableElement(x, y);
+            if (target !== dwellTargetRef.current) {
+              dwellTargetRef.current = target;
               dwellStartRef.current = now;
+              updateProgress(0);
+            } else if (target && now >= clickCooldownRef.current && !suppressClickRef?.current) {
+              const elapsed = now - dwellStartRef.current;
+              const progress = Math.min(1, elapsed / HAND_CURSOR_DWELL_MS);
+              updateProgress(progress);
+
+              if (progress >= 1) {
+                target.click();
+                clickCooldownRef.current = now + 600;
+                dwellStartRef.current = now;
+                updateProgress(0);
+              }
+            } else {
               updateProgress(0);
             }
           } else {
+            dwellTargetRef.current = null;
             updateProgress(0);
           }
         } else {
           dot.dataset.visible = 'false';
           dwellTargetRef.current = null;
           updateProgress(0);
+          document.body.classList.remove('hand-cursor-active');
         }
       }
 
